@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.contrib import admin
+#from django.contrib import admin
 from django.urls import path, include
 
 from myApp import userdevelop, manager, userBasic, userPlan, debug, AI, shareDoc,file,mail
@@ -29,7 +29,7 @@ websocket_urlpatterns = [
 ]
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+#    path('admin/', admin.site.urls),
     path('api/userBindRepo', userdevelop.UserBindRepo.as_view()),
     path('api/management/showUsers', manager.ShowUsers.as_view()),
     path('api/management/showAdmins', manager.ShowAdmins.as_view()),

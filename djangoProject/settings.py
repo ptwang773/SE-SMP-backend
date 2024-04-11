@@ -18,7 +18,6 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
@@ -28,17 +27,19 @@ SECRET_KEY = 'django-insecure-2bo1p8f=2rybk-&)5qo$5%ahm^l0&ht0z7qv5(8=1*=1kc3^^s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+ALLOWED_HOSTS = ['192.168.1.*','192.168.0.189','114.116.202.116']
+
 ALLOWED_HOSTS = ['*']
 
 # 配置 MEDIA_ROOT 作为你上传文件在服务器中的基本路径
-#MEDIA_ROOT = os.path.join(BASE_DIR, 'static/upload') # 注意此处不要写成列表或元组的形式
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'static/upload') # 注意此处不要写成列表或元组的形式
 # 配置 MEDIA_URL 作为公用 URL，指向上传文件的基本路径
-#MEDIA_URL = '/media/'
+# MEDIA_URL = '/media/'
 # 这里特意写成 upload 和 media，而不是统一写成 media 或 upload，是为了便于理解 MEDIA_ROOT 和 MEDIA_URL 的作用和区别
 
-#MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace("\\", "/")
-#MEDIA_URL = '/media/'
-#BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media').replace("\\", "/")
+# MEDIA_URL = '/media/'
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Application definition
 
@@ -50,15 +51,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'corsheaders',
+    'corsheaders',
     'myApp',
     # 'imagekit'
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    # 'corsheaders.middleware.CorsMiddleware',
+
+   # 'corsheaders.middleware.CorsMiddleware',
+
     'django.middleware.common.CommonMiddleware',
 
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -68,13 +73,14 @@ MIDDLEWARE = [
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'djangoProject.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        #'DIRS': [BASE_DIR / 'templates'],
-        'DIRS': ['template/dist'],
+         'DIRS': [BASE_DIR / 'templates'],
+#        'DIRS': [BASE_DIR/ '../SE-SMP-frontend/dist'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -89,14 +95,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'djangoProject.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
-       'ENGINE': 'django.db.backends.sqlite3',
-       'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
     # 'default': {
     #     'ENGINE': 'django.db.backends.mysql',
@@ -114,16 +119,16 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
-        'console':{
-            'level':'DEBUG',
-            'class':'logging.StreamHandler',
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
         },
     },
     'loggers': {
         'django.db.backends': {
             'handlers': ['console'],
             'propagate': True,
-            'level':'DEBUG',
+            'level': 'DEBUG',
         },
     }
 }
@@ -146,7 +151,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
@@ -158,23 +162,35 @@ USE_I18N = True
 
 USE_L10N = True
 
-#USE_TZ = True
+# USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATICFILES_DIRS = [
- os.path.join(BASE_DIR, "template/dist/static"),
-]
+    #os.path.join(BASE_DIR, "template/dist/static"),
+    os.path.join(BASE_DIR, "../SE-SMP-frontend/dist/"),  # 加上这条
+]   
 
 STATIC_URL = '/static/'
 
 # Allowed_hosts
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_HEADERS = ('*')
-
+CORS_ALLOW_HEADERS = ('XMLHttpRequest',
+                      'X_FILENAME',
+                      'accept-encoding',
+                      'authorization',
+                      'content-type',
+                      'dnt',
+                      'origin',
+                      'user-agent',
+                      'x-csrftoken',
+                      'x-requested-with',
+                      'Pragma',
+                      'x-token',
+                      'Cookie',)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
@@ -195,16 +211,27 @@ CHANNEL_LAYERS = {
     },
 }
 
+
 def DBG(*args):
-  if DEBUG_MODE == True:
-    pt = "        DBG INFO: " +  str(args)
-    print(pt)
+    if DEBUG_MODE == True:
+        pt = "        DBG INFO: " + str(args)
+        print(pt)
 
 
 from django.http import JsonResponse
+
+
 def response_json(errcode, message=None, data=None):
     return JsonResponse({
         'errcode': errcode,
         'message': message,
         'data': data,
     })
+
+
+#CORS_ORIGIN_WHITELIST =[]
+
+CORS_ALLOW_METHODS = [
+    'DELETE', 'GET', 'POST', 'PUT', 'PATCH', 'OPTIONS', 'VIEW'
+]
+

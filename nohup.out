@@ -1,0 +1,50 @@
+Watching for file changes with StatReloader
+System check identified some issues:
+
+WARNINGS:
+myApp.UserDocLock.doc_id: (fields.W342) Setting unique=True on a ForeignKey has the same effect as using a OneToOneField.
+	HINT: ForeignKey(unique=True) is usually better served by a OneToOneField.
+
+System check identified 1 issue (0 silenced).
+(0.001) 
+            SELECT name, type FROM sqlite_master
+            WHERE type in ('table', 'view') AND NOT name='sqlite_sequence'
+            ORDER BY name; args=None; alias=default
+(0.000) SELECT "django_migrations"."id", "django_migrations"."app", "django_migrations"."name", "django_migrations"."applied" FROM "django_migrations"; args=(); alias=default
+(0.019) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 11 LIMIT 21; args=(11,); alias=default
+(0.001) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+HTTP POST /api/plan/watchAllProject 200 [0.03, 219.239.227.125:20260]
+(0.001) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 11 LIMIT 21; args=(11,); alias=default
+(0.000) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+HTTP POST /api/plan/watchAllProject 200 [0.01, 219.239.227.125:20260]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 11 LIMIT 21; args=(11,); alias=default
+(0.000) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+HTTP POST /api/plan/watchAllProject 200 [0.00, 219.239.227.125:20260]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 11 LIMIT 21; args=(11,); alias=default
+(0.000) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+HTTP POST /api/plan/watchAllProject 200 [0.00, 219.239.227.125:20260]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 1 LIMIT 21; args=(1,); alias=default
+Not Found: /HPImageArchive.aspx
+HTTP GET /HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN 404 [0.13, 219.239.227.125:20260]
+HTTP OPTIONS /api/login 200 [0.00, 219.239.227.125:53506]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 1 LIMIT 21; args=(1,); alias=default
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."name" = 'test'; args=('test',); alias=default
+(0.010) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."email" = 'test'; args=('test',); alias=default
+HTTP POST /api/login 200 [0.01, 219.239.227.125:20260]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 1 LIMIT 21; args=(1,); alias=default
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."name" = 'abcd'; args=('abcd',); alias=default
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."name" = 'abcd' ORDER BY "myApp_user"."id" ASC LIMIT 1; args=('abcd',); alias=default
+(0.002) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2024-04-11 07:04:07.851853' AND "django_session"."session_key" = 'crm5k4l501ehwdxv756kd6hm6m5xhifk') LIMIT 21; args=('2024-04-11 07:04:07.851853', 'crm5k4l501ehwdxv756kd6hm6m5xhifk'); alias=default
+(0.001) SELECT "myApp_project"."id", "myApp_project"."create_time", "myApp_project"."progress", "myApp_project"."status", "myApp_project"."access", "myApp_project"."name", "myApp_project"."outline", "myApp_project"."manager_id_id" FROM "myApp_project" WHERE "myApp_project"."manager_id_id" = 11; args=(11,); alias=default
+(0.000) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+(0.005) UPDATE "myApp_user" SET "name" = 'abcd', "email" = 'abcd@123.com', "password" = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', "create_time" = '2024-04-10 14:05:01.774876', "last_login_time" = '2024-04-11 07:04:07.856228', "color" = 'D', "status" = 'A' WHERE "myApp_user"."id" = 11; args=('abcd', 'abcd@123.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', '2024-04-10 14:05:01.774876', '2024-04-11 07:04:07.856228', 'D', 'A', 11); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.001) UPDATE "django_session" SET "session_data" = 'eyJ1c2VySWQiOjExfQ:1ruoTf:YugJKLIk2iG3vkv3ndor0qvob09AIvYmIVs7NhEBpYs', "expire_date" = '2024-04-25 07:04:07.862941' WHERE "django_session"."session_key" = 'crm5k4l501ehwdxv756kd6hm6m5xhifk'; args=('eyJ1c2VySWQiOjExfQ:1ruoTf:YugJKLIk2iG3vkv3ndor0qvob09AIvYmIVs7NhEBpYs', '2024-04-25 07:04:07.862941', 'crm5k4l501ehwdxv756kd6hm6m5xhifk'); alias=default
+(0.021) COMMIT; args=None; alias=default
+HTTP POST /api/login 200 [0.04, 219.239.227.125:20260]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 11 LIMIT 21; args=(11,); alias=default
+(0.000) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+HTTP POST /api/plan/watchAllProject 200 [0.00, 219.239.227.125:20260]
+(0.000) SELECT "myApp_user"."id", "myApp_user"."name", "myApp_user"."email", "myApp_user"."password", "myApp_user"."create_time", "myApp_user"."last_login_time", "myApp_user"."color", "myApp_user"."status" FROM "myApp_user" WHERE "myApp_user"."id" = 11 LIMIT 21; args=(11,); alias=default
+(0.000) SELECT "myApp_userproject"."id", "myApp_userproject"."user_id_id", "myApp_userproject"."project_id_id", "myApp_userproject"."role" FROM "myApp_userproject" WHERE "myApp_userproject"."user_id_id" = 11; args=(11,); alias=default
+HTTP POST /api/plan/watchAllProject 200 [0.00, 219.239.227.125:53990]
