@@ -1,6 +1,8 @@
+import mimetypes
 import struct
 
-from django.http import JsonResponse, HttpResponse
+import requests
+from django.http import JsonResponse, HttpResponse, FileResponse
 from django.core import serializers
 from django.views import View
 from myApp.models import *
@@ -77,7 +79,7 @@ class GetProjectName(View):
     userProject = isUserInProject(userId, projectId)
     if userProject == None:
       return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
-    
+
     response["data"]["name"] = project.name
     return JsonResponse(response)
 
@@ -123,6 +125,80 @@ class GetBindRepos(View):
     
     return JsonResponse(response)
 
+class GetRepoAllFiles(View):
+  def post(self,request):
+    # 检查权限
+    DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+    response = {'message': "404 not success", "errcode": -1}
+    try:
+      kwargs: dict = json.loads(request.body)
+    except Exception:
+      return JsonResponse(response)
+    response = {}
+    genResponseStateInfo(response, 0, "get repo all files ok")
+    userId = str(kwargs.get('userId'))
+    projectId = str(kwargs.get('projectId'))
+    repoId = str(kwargs.get('repoId'))
+    dirPath = str(kwargs.get('dirPath'))
+    project = isProjectExists(projectId)
+    if project == None:
+      return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+    userProject = isUserInProject(userId, projectId)
+    if userProject == None:
+      return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+    if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+      return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+    repo = Repo.objects.get(pk=repoId)
+    owner = str.split(repo.remote_path,"/")[0]
+    repo =str.split(repo.remote_path,"/")[1]
+    print(owner,repo)
+    url = f"https://api.github.com/repos/{owner}/{repo}/contents/{dirPath}"
+    resp = requests.get(url)
+    data = []
+    if resp.status_code == 200:
+      files = resp.json()
+      for file in files:
+          data.append({"name":file['name'],"type":file['type']})
+      response["data"] = {"files": data}
+      return JsonResponse(response)
+    else:
+      return JsonResponse(genResponseStateInfo(response, 4, "get repo all files fail, maybe path is wrong"))
+
+class GetRepoFile(View):
+  def post(self, request):
+    DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+    response = {'message': "404 not success", "errcode": -1}
+    try:
+      kwargs: dict = json.loads(request.body)
+    except Exception:
+      return JsonResponse(response)
+    response = {}
+    genResponseStateInfo(response, 0, "get repo all files ok")
+    userId = str(kwargs.get('userId'))
+    projectId = str(kwargs.get('projectId'))
+    repoId = str(kwargs.get('repoId'))
+    filePath = str(kwargs.get('filePath'))
+    project = isProjectExists(projectId)
+    if project == None:
+      return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+    userProject = isUserInProject(userId, projectId)
+    if userProject == None:
+      return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+    if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+      return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+    repo = Repo.objects.get(pk=repoId)
+    file_path = repo.local_path + "/" + filePath
+    try:
+      if not os.path.isfile(file_path):
+        return JsonResponse(genResponseStateInfo(response, 1, "file does not exists"))
+      with open(file_path, 'r') as file:
+        file_content = file.read()
+      content_type, _ = mimetypes.guess_type(file_path)
+      return FileResponse(file_content, content_type=content_type)
+    except FileNotFoundError:
+      return JsonResponse(genResponseStateInfo(response, 1, "file does not exists"))
+
+
 class UserBindRepo(View):
   def post(self, request):
       DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -154,6 +230,7 @@ class UserBindRepo(View):
           if len(userProjectRepo) != 0:
             return JsonResponse(genResponseStateInfo(response, 4, "duplicate repo"))
         # clone & repo
+        print(repoRemotePath)
         repoName = repoRemotePath.split("/")[-1]
         localPath = os.path.join(USER_REPOS_DIR, repoName)
         DBG("repoName=" + repoName, " localPath=" + localPath)

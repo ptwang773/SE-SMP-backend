@@ -52,6 +52,9 @@ urlpatterns = [
     path('api/develop/getPrList', userdevelop.GetPrList.as_view()),
     path('api/develop/getFileTree', userdevelop.GetFileTree.as_view()),
     path('api/develop/getContent', userdevelop.GetContent.as_view()),
+    path('api/develop/getRepoAllFiles',userdevelop.GetRepoAllFiles.as_view()),
+    path('api/develop/getRepoFile',userdevelop.GetRepoFile.as_view()),
+
     path('api/register', userBasic.register),
     path('api/login', userBasic.login),
     path('api/getUserInfo', userBasic.get_user_information),
