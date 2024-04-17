@@ -516,8 +516,14 @@ class reviewTask(View):
             response['data'] = None
             return JsonResponse(response)
         task = Task.objects.get(id=taskId)
-        projectId = task.project_id_id
-        if UserProject.objects.filter(user_id=userId, project_id=projectId,
+        project = task.project_id
+        if User.objects.filter(id=userId).count() == 0:
+            response['errcode'] = 2
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        user = User.objects.get(id=userId)
+        if UserProject.objects.filter(user_id=user, project_id=project,
                                       role=UserProject.NORMAL).count() > 0:
             response['errcode'] = 3
             response['message'] = "permission denied"
