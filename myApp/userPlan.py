@@ -195,6 +195,8 @@ class addSubTask(View):
         projectId = kwargs.get("projectId", -1)
         belongTask = kwargs.get("fatherTaskId", -1)
         managerId = kwargs.get("managerId", -1)
+        label = kwargs.get("label",None)
+
         t = kwargs.get("start_time", "")
         y, m, d = t.split("-")
         y = int(y)
@@ -226,7 +228,7 @@ class addSubTask(View):
         deadline = datetime.datetime(year=year, month=month, day=day)
         startTime = datetime.datetime(year=y, month=m, day=d)
         task = Task.objects.create(name=name, deadline=deadline, contribute_level=contribute, project_id_id=projectId,
-                                   parent_id_id=belongTask, start_time=startTime)
+                                   parent_id_id=belongTask, start_time=startTime,task_label=label)
         task.status = Task.NOTSTART
         task.save()
 
@@ -265,7 +267,7 @@ class showTaskList(View):
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
-                           "complete_time": j.complete_time}
+                           "complete_time": j.complete_time, "sub_task_label":i.task_label}
 
                 if j.status != Task.COMPLETED:
                     if cur_time > j.deadline:
@@ -308,6 +310,7 @@ class modifyTaskContent(View):
         taskName = kwargs.get("taskName", "")
         managerId = kwargs.get("managerId", -1)
         startTime = kwargs.get("start_time", "")
+        label = kwargs.get("label",None)
         y, m, d = startTime.split("-")
         y = int(y)
         m = int(m)
@@ -331,6 +334,7 @@ class modifyTaskContent(View):
         task.start_time = datetime.datetime(year=y, month=m, day=d)
         task.contribute_level = contribute
         task.name = taskName
+        task.label = label
         task.save()
 
         UserTask.objects.filter(task_id=task).delete()
@@ -410,7 +414,7 @@ class watchMyTask(View):
                 j = Task.objects.get(id=subtask.task_id_id)
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
-                           "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
+                           "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,"sub_label":j.task_label,
                            "complete_time": j.complete_time}
 
                 if j.status != Task.COMPLETED:

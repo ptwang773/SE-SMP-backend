@@ -1,6 +1,8 @@
 from django.db import models
 import datetime
 
+from openai.types.beta import Assistant
+
 
 class User(models.Model):
     id = models.AutoField(primary_key=True)
@@ -102,7 +104,7 @@ class Task(models.Model):
         (ENHANCE, 'ENHANCEMENT'),
         (FEATURE, 'FEATURE')
     )
-    task_label = models.CharField(max_length=255,choices=LABEL_LIST, default=BUG)
+    task_label = models.CharField(max_length=255,choices=LABEL_LIST, default=None,null=True)
 
 
 class TaskReview(models.Model):
@@ -278,5 +280,9 @@ class UserProjectRepo(models.Model):
 class ProgressTask(models.Model):
     repo_id = models.ForeignKey(Repo, on_delete=models.CASCADE)
     progress_id = models.ForeignKey(Progress, on_delete=models.CASCADE)
+
+class AssistantProject(models.Model):
+    assistant_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
 
 # TODO : add enum check in function
