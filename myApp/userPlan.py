@@ -485,6 +485,7 @@ class getTaskReviews(View):
             response['message'] = "task not exist"
             response['data'] = None
             return JsonResponse(response)
+
         reviewList = TaskReview.objects.filter(task_id=taskId).order_by("created_time")
         reviews = []
         for i in reviewList:
@@ -497,8 +498,37 @@ class getTaskReviews(View):
         response['data'] = {"reviews": reviews}
         return JsonResponse(response)
 
-# class reviewTask(View):
+class reviewTask(View):
+    def post(self,request):
+        response = {'errcode': 1, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
 
+        userId = kwargs.get("userId",-1)
+        taskId = kwargs.get("taskId", -1)
+        content = kwargs.get("content", -1)
+
+        if Task.objects.filter(id=taskId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "task not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        task = Task.objects.get(id=taskId)
+        projectId = task.project_id_id
+        if UserProject.objects.filter(user_id=userId, project_id=projectId,
+                                      role=UserProject.NORMAL).count() > 0:
+            response['errcode'] = 3
+            response['message'] = "permission denied"
+            response['data'] = None
+            return JsonResponse(response)
+
+        TaskReview.objects.create(task=task, content=content,user_id=userId, create_time=timezone.now())
+        TaskReview.save()
+        response['errcode'] = 0
+        response['message'] = "success review"
+        return JsonResponse(response)
 # ----------member level---------------------------
 
 
