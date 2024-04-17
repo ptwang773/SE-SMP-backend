@@ -137,7 +137,7 @@ def get_user_information(request):
     kwargs: dict = json.loads(request.body)
 
     manager = User.objects.get(id = int(kwargs.get('managerId')))
-    if not manager.status == 'C':
+    if manager.auth  == 1:
         return response_json(
             errcode = 1,
             message = 'not admin'
