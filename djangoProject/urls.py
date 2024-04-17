@@ -42,6 +42,11 @@ urlpatterns = [
     path('api/management/getUserNum', manager.GetUserNum.as_view()),
     path('api/management/getProjectNum', manager.GetProjectNum.as_view()),
     path('api/management/getProjectsScale', manager.GetProjectScale.as_view()),
+    path('api/management/showAssistantProjects', manager.ShowAssistantProjects.as_view()),
+    path('api/management/changeUserAuthority', manager.ChangeUserAuthority.as_view()),
+    path('api/management/addAssistantPorject', manager.AddAssistantProject.as_view()),
+    path('api/management/removeAssistantPorject', manager.RemoveAssistantProject.as_view()),
+
     path('api/develop/getProjectName', userdevelop.GetProjectName.as_view()),
     path('api/develop/getBindRepos', userdevelop.GetBindRepos.as_view()),
     path('api/develop/userBindRepo', userdevelop.UserBindRepo.as_view()),

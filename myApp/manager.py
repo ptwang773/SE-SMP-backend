@@ -16,8 +16,8 @@ from hashlib import sha256
 # TODO : add check manager function
 def isAdmin(userId):
   try:
-    status = User.objects.get(id=userId).status
-    if status != User.ADMIN:
+    auth = User.objects.get(id=userId).auth
+    if auth != User.TEACHER and auth != User.ASSISTANT:
       return False
     return True
   except Exception as e:
@@ -289,4 +289,120 @@ class GetProjectScale(View):
     response["mediumNum"] = medium
     response["bigNum"] = big
     response["largeNum"] = large
+    return JsonResponse(response)
+
+class ShowAssistantProjects(View):
+  def post(self, request):
+    DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+    response = {'message': "404 not success", "errcode": -1}
+    try:
+      kwargs: dict = json.loads(request.body)
+    except Exception:
+      return JsonResponse(response)
+    response = {}
+    genResponseStateInfo(response, 0, "get assistant projects ok")
+
+    managerId = kwargs.get('teacherId')
+    if not isAdmin(managerId):
+      return JsonResponse(genResponseStateInfo(response, 1, "querier is not teacher"))
+
+    userId = kwargs.get('assistantId')
+    userAuth = User.objects.get(id=userId).auth
+    if userAuth != User.ASSISTANT:
+      return JsonResponse(genResponseStateInfo(response, 2, "queried user is not assistant"))
+    elif userAuth == User.TEACHER:
+      return JsonResponse(genResponseStateInfo(response, 3, "queried user is teacher"))
+    
+    projects = []
+    assistantProjects = AssistantProject.objects.filter(id=userId)
+    for project in assistantProjects:
+      leader = User.objects.get(id=project.manager_id.id)
+      projects.append({"name" : project.name, "projectId" : project.id,
+                       "leader" : leader.name, "leaderId" : leader.id,
+                      "email" : leader.email, "createTime" : project.create_time,
+                      "progress" : project.progress, "status" : project.status, 
+                      "access" : project.access})
+    response["project"] = projects
+    return JsonResponse(response)
+  
+class ChangeUserAuthority(View):
+  def post(self, request):
+    DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+    response = {'message': "404 not success", "errcode": -1}
+    try:
+      kwargs: dict = json.loads(request.body)
+    except Exception:
+      return JsonResponse(response)
+    response = {}
+    genResponseStateInfo(response, 0, "get assistant projects ok")
+    managerId = kwargs.get('teacherId')
+    managerAuth = User.objects.get(id=managerId) 
+    userId = kwargs.get('userId')
+    userAuth = User.objects.get(id=userId)
+    changeToAuth = kwargs.get('changeToAuthority')
+
+    if managerAuth < changeToAuth or managerAuth < userAuth:
+      return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
+    
+    if userAuth == changeToAuth:
+      return JsonResponse(genResponseStateInfo(response, 2, "no need change"))
+    
+    response["username"] = User.objects.get(userId).name
+    return JsonResponse(response)
+
+class AddAssistantProject(View):
+  def post(self, request):
+    DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+    response = {'message': "404 not success", "errcode": -1}
+    try:
+      kwargs: dict = json.loads(request.body)
+    except Exception:
+      return JsonResponse(response)
+    response = {}
+    genResponseStateInfo(response, 0, "add assistant project ok")
+    managerId = kwargs.get('managerId')
+    manager = User.objects.get(id=managerId)
+    userId = kwargs.get('userId')
+    user = User.objects.get(id=usesId)
+    projectId = kwargs.get('projectId')
+    project = Project.objects.get(id=projectId)
+
+    if manager.auth !=3 or user.auth !=2:
+      return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
+    if not len(AssistantProject.objects.filter(assistant_id = userId, project_id=projectId))==0:
+      return JsonResponse(genResponseStateInfo(response, 2, "no need add"))
+    
+    ap = AssistantProject(
+      assistant_id = userId,
+      project_id = projectId
+    )
+    ap.save()
+    response["username"]= User.objects.filter(id=userId)
+    return JsonResponse(response)
+
+class RemoveAssistantProject(View):
+  def post(self,request):
+    DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+    response = {'message': "404 not success", "errcode": -1}
+    try:
+      kwargs: dict = json.loads(request.body)
+    except Exception:
+      return JsonResponse(response)
+    response = {}
+    genResponseStateInfo(response, 0, "remove assistant project ok")
+
+    managerId = kwargs.get('managerId')
+    manager = User.objects.get(id=managerId)
+    userId = kwargs.get('userId')
+    user = User.objects.get(id=usesId)
+    projectId = kwargs.get('projectId')
+    project = Project.objects.get(id=projectId)
+
+    if manager.auth !=3 or user.auth !=2:
+      return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
+    ap = AssistantProject.objects.filter(assistant_id = userId, project_id=projectId)
+    if len(ap)==0:
+      return JsonResponse(genResponseStateInfo(response, 2, "no need remove"))
+    ap.delete()
+    response["username"]= User.objects.filter(id=userId)
     return JsonResponse(response)
