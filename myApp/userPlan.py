@@ -199,7 +199,7 @@ class addSubTask(View):
         projectId = kwargs.get("projectId", -1)
         belongTask = kwargs.get("fatherTaskId", -1)
         managerId = kwargs.get("managerId", -1)
-        label = kwargs.get("label",None)
+        label = kwargs.get("subTaskLabel",None)
 
         t = kwargs.get("start_time", "")
         y, m, d = t.split("-")
