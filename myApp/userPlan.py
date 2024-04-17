@@ -10,7 +10,21 @@ import datetime
 
 # --------------------project level--------------------
 
-
+def canManage(userId, projectId):
+    try:
+        user = User.objects.get(id=userId)
+        project = Project.objects.get(id=projectId)
+        if project.manager_id == userId:
+            return True
+        if user.auth == 3:
+            return True
+        if user.auth == 2 and \
+            len(AssistantProject.objects.filter(assistant_id = userId, project_id = projectId))!=0:
+            return True
+        return False
+    except:
+        return False
+    
 class newProject(View):
     def post(self, request):
         response = {'message': "404 not success", "errcode": 1}
@@ -1004,4 +1018,149 @@ class ProjectInfo(View):
         response['errcode'] = 0
         response['data'] = ans
         response['message'] = "success"
+        return JsonResponse(response)
+
+class getUserProjectAuths(View):
+    def post(self, request):
+        response = {'errcode': 0, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+
+        response['message'] = "get user project authority ok"
+        projectId = kwargs.get("projectId", -1)
+        if Project.objects.filter(id=projectId).count() == 0:
+            response['errcode'] = 2
+            response['message'] = "project not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        project = Project.objects.get(id=projectId)
+        
+        personId = kwargs.get("personId", -1)
+        if User.objects.filter(id=personId).count() == 0:
+            response['errcode'] = 3
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        
+        userId = kwargs.get("userId", -1)
+        if User.objects.filter(id=userId).count() == 0:
+            response['errcode'] = 3
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        
+        userProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
+        if len(userProject)==0:
+            response['errcode'] = 4
+            response['message'] = "no such user in project"
+            response['data'] = None
+            return JsonResponse(response)
+        userProject = userProject.first()
+
+        if not canManage(userId, projectId) :
+            response['errcode'] = 1
+            response['message'] = "Insufficient authority"
+            response['data'] = None
+            return JsonResponse(response)
+
+        personProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
+        if len(personProject)==0:
+            response['errcode'] = 4
+            response['message'] = "no such user in project"
+            response['data'] = None
+            return JsonResponse(response)
+        personProject = personProject.first()
+
+        data = {}
+        data["commitAuth"] = personProject.commitAuth
+        data["editAuth"] = personProject.editAuth
+        data["viewAuth"] = personProject.viewAuth
+
+        response["data"] = data
+        return JsonResponse(response)
+
+class changeUserProjectAuths(View):
+    def post(self, request):
+        response = {'errcode': 0, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        
+        response['message'] = "change user project authority ok"
+        projectId = kwargs.get("projectId", -1)
+        if Project.objects.filter(id=projectId).count() == 0:
+            response['errcode'] = 2
+            response['message'] = "project not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        project = Project.objects.get(id=projectId)
+        
+        personId = kwargs.get("personId", -1)
+        if User.objects.filter(id=personId).count() == 0:
+            response['errcode'] = 3
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        
+        userId = kwargs.get("userId", -1)
+        if User.objects.filter(id=userId).count() == 0:
+            response['errcode'] = 3
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        
+        userProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
+        if len(userProject)==0:
+            response['errcode'] = 4
+            response['message'] = "no such user in project"
+            response['data'] = None
+            return JsonResponse(response)
+        userProject = userProject.first()
+
+        if not canManage(userId, projectId) :
+            response['errcode'] = 1
+            response['message'] = "Insufficient authority"
+            response['data'] = None
+            return JsonResponse(response)
+
+        personProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
+        if len(personProject)==0:
+            response['errcode'] = 4
+            response['message'] = "no such user in project"
+            response['data'] = None
+            return JsonResponse(response)
+        personProject = personProject.first()
+
+        changeToCA = kwargs.get("changeToCommitAuth")
+        changeToEA = kwargs.get("changeToEditAuth")
+        changeToVA = kwargs.get("changeToViewAuth")
+
+        if changeToCA != "Y" and changeToCA !="N":
+            response['errcode'] = 5
+            response['message'] = "undefined authority"
+            response['data'] = None
+            return JsonResponse(response)
+        if changeToEA != "Y" and changeToEA !="N":
+            response['errcode'] = 5
+            response['message'] = "undefined authority"
+            response['data'] = None
+            return JsonResponse(response)
+        if changeToVA != "Y" and changeToVA !="N":
+            response['errcode'] = 5
+            response['message'] = "undefined authority"
+            response['data'] = None
+            return JsonResponse(response)
+        
+        personProject.commitAuth = changeToCA
+        personProject.editAuth = changeToEA
+        personProject.viewAuth = changeToVA
+        personProject.save()
+
+        data = {}
+        data["username"] = User.objects.get(id=userId).name
+
+        response["data"] = data
         return JsonResponse(response)

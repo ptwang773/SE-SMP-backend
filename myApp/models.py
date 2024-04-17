@@ -247,6 +247,16 @@ class UserProject(models.Model):
     )
 
     role = models.CharField(max_length=3, choices=ROLE_LIST)
+    Y = 'Y'
+    N = 'N'
+    YON = (
+        (Y, 'Y'),
+        (N, 'N'),
+    )
+
+    commitAuth = models.CharField(max_length=3, choices=YON, default=N)
+    editAuth = models.CharField(max_length=3, choices=YON, default=N)
+    viewAuth = models.CharField(max_length=3, choices=YON, default=Y)
 
 
 class UserGroup(models.Model):
