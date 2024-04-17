@@ -31,5 +31,6 @@
 ## api 开发
 - 在 myApp/<你负责的模块>.py 中添加视图函数
 - 在 djangoProject/urls.py 中添加视图函数 url
-- 在 myApp/tests.py 中写单元测试
+- 在 apifox中撰写接口文档
+- 在 apifox中进行接口测试
 - settings.py 中提供了调试打印函数 `DBG`
