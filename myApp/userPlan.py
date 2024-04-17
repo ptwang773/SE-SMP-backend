@@ -486,13 +486,13 @@ class getTaskReviews(View):
             response['data'] = None
             return JsonResponse(response)
 
-        reviewList = TaskReview.objects.filter(task_id=taskId).order_by("created_time")
+        reviewList = TaskReview.objects.filter(task_id=taskId).order_by("create_time")
         reviews = []
         for i in reviewList:
             review = TaskReview.objects.get(pk=i.id)
 
             user = review.user_id
-            reviews.append({"userName": user.name, "content":review.content,"createdTime":review.created_time})
+            reviews.append({"userName": user.name, "content":review.content,"createTime":review.create_time})
         response['errcode'] = 0
         response['message'] = "get task reviews ok"
         response['data'] = {"reviews": reviews}
