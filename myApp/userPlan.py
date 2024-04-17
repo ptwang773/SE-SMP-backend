@@ -530,7 +530,7 @@ class reviewTask(View):
             response['data'] = None
             return JsonResponse(response)
 
-        TaskReview.objects.create(task=task, content=content,user_id=userId, create_time=timezone.now())
+        TaskReview.objects.create(task=task, content=content,user_id=user, create_time=timezone.now())
         TaskReview.save()
         response['errcode'] = 0
         response['message'] = "success review"
