@@ -336,7 +336,7 @@ class ChangeUserAuthority(View):
     except Exception:
       return JsonResponse(response)
     response = {}
-    genResponseStateInfo(response, 0, "get assistant projects ok")
+    genResponseStateInfo(response, 0, "change user auth ok")
     managerId = kwargs.get('managerId')
 
     managerAuth = User.objects.get(id=managerId).auth
@@ -352,6 +352,7 @@ class ChangeUserAuthority(View):
       return JsonResponse(genResponseStateInfo(response, 2, "no need change"))
 
     user.auth = changeToAuth
+    user.status = User.ADMIN
     user.save()
     response["data"] = {"username":User.objects.get(id=userId).name}
     return JsonResponse(response)
