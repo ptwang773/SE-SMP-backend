@@ -39,7 +39,7 @@ class Command(BaseCommand):
     print("begin build data base")
     userListToInsert = list()
     User(name=admin_name,email=admin_name+"@buaa.edu.cn",password=admin_pw,
-         last_login_time=datetime.datetime.today(),status=User.ADMIN).save()
+         last_login_time=datetime.datetime.today(),status=User.ADMIN,auth=User.TEACHER).save()
     Project(status=Project.INPROGRESS,access=Project.NORMAL ,name="system",
             outline="system",manager_id=User.objects.get(name="system"),progress=1).save()
     for i in range(2, 11):

@@ -47,10 +47,10 @@ class ShowUsers(View):
       return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
     allUsers = User.objects.all()
     for user in allUsers:
-      if user.status == user.ADMIN:
+      if user.status == user.ADMIN or user.auth >= User.objects.get(id=managerId).auth:
         continue
       users.append({"id": user.id, "name" : user.name, "email" : user.email, 
-                    "registerTime" : user.create_time, "status" : user.status})
+                    "registerTime" : user.create_time, "status" : user.status,"auth":user.auth})
       
     response["users"] = users
     return JsonResponse(response)
@@ -71,10 +71,10 @@ class ShowAdmins(View):
       return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
     allUsers = User.objects.all()
     for user in allUsers:
-      if user.status != user.ADMIN:
+      if user.status != user.ADMIN or user.auth == User.STUDENT:
         continue
       users.append({"id": user.id, "name" : user.name, "email" : user.email, 
-                    "registerTime" : user.create_time, "status" : user.status})
+                    "registerTime" : user.create_time, "status" : user.status, "auth":user.auth})
       
     response["users"] = users
     return JsonResponse(response)
