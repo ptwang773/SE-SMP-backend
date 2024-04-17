@@ -83,6 +83,23 @@ class Task(models.Model):
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     order = models.IntegerField(default=0)
 
+    BUG = 'A'
+    ENHANCE = 'B'
+    FEATURE = 'C'
+    LABEL_LIST = (
+        (BUG, 'BUG'),
+        (ENHANCE, 'ENHANCEMENT'),
+        (FEATURE, 'FEATURE')
+    )
+    task_label = models.CharField(max_length=255,choices=LABEL_LIST, default=BUG)
+
+
+class TaskReview(models.Model):
+    id = models.AutoField(primary_key=True)
+    task_id = models.ForeignKey(Task, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    create_time = models.DateTimeField()
 
 class Group(models.Model):
     id = models.AutoField(primary_key=True)
@@ -215,6 +232,7 @@ class UserProject(models.Model):
         (ADMIN, 'ADMIN'),
         (DEVELOPER, 'DEVELOPER'),
     )
+
     role = models.CharField(max_length=3, choices=ROLE_LIST)
 
 

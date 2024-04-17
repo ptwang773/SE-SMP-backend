@@ -470,6 +470,34 @@ class removeTask(View):
         response['data'] = None
         return JsonResponse(response)
 
+class getTaskReviews(View):
+    def post(self,request):
+        response = {'errcode': 1, 'message': "404 not success"}
+
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+
+        taskId = kwargs.get("taskId", -1)
+        if Task.objects.filter(id=taskId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "task not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        reviewList = TaskReview.objects.filter(task_id=taskId).order_by("created_time")
+        reviews = []
+        for i in reviewList:
+            review = TaskReview.objects.get(pk=i.id)
+
+            user = review.user_id
+            reviews.append({"userName": user.name, "content":review.content,"createdTime":review.created_time})
+        response['errcode'] = 0
+        response['message'] = "get task reviews ok"
+        response['data'] = {"reviews": reviews}
+        return JsonResponse(response)
+
+# class reviewTask(View):
 
 # ----------member level---------------------------
 

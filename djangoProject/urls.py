@@ -83,6 +83,9 @@ urlpatterns = [
     path('api/plan/showNoticeList', userPlan.showNoticeList.as_view()),
     path('api/plan/modifyNotice', userPlan.modifyNotice.as_view()),
     path('api/plan/removeNotice', userPlan.removeNotice.as_view()),
+
+    path('api/plan/getTaskReviews',userPlan.getTaskReviews.as_view()),
+
     path('api/echo', debug.echo),
     path('api/notice/userPostNoticeToAll', notice.UserPostNoticeToAll.as_view()),
     path('api/notice/userPostNoticeToOne', notice.UserPostNoticeToOne.as_view()),
