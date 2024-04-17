@@ -1,4 +1,6 @@
 from django.http import JsonResponse
+from django.utils import timezone
+
 from myApp.models import *
 from django.views import View
 from myApp.userChat import delete_user_from_groups
@@ -254,7 +256,7 @@ class showTaskList(View):
 
         taskList = Task.objects.filter(project_id_id=projectId, parent_id=None).order_by("order")
         data = []
-        cur_time = datetime.datetime.now()
+        cur_time = timezone.now()
         for i in taskList:
             tmp = {"taskName": i.name, "taskId": i.id}
             subTasks = Task.objects.filter(parent_id=i)
