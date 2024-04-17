@@ -68,7 +68,8 @@ def register(request):
              status = User.NORMAL,
              color = 'D',
              create_time = datetime.datetime.now(),
-             last_login_time = datetime.datetime.now())
+             last_login_time = datetime.datetime.now(),
+             auth = User.STUDENT)
     u.save()
     return response_json(
         errcode = Success,
