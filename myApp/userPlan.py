@@ -9,6 +9,10 @@ import datetime
 
 
 # --------------------project level--------------------
+def getLabelName(label):
+    LABLE_LIST = Task.LABEL_LIST
+    label_name = [name for value, name in Task.LABEL_LIST if value == label][0]
+    return label_name
 
 def canManage(userId, projectId):
     try:
@@ -209,7 +213,7 @@ class addSubTask(View):
         projectId = kwargs.get("projectId", -1)
         belongTask = kwargs.get("fatherTaskId", -1)
         managerId = kwargs.get("managerId", -1)
-        label = kwargs.get("label",None)
+        label = kwargs.get("subTaskLabel",None)
 
         t = kwargs.get("start_time", "")
         y, m, d = t.split("-")
@@ -281,7 +285,7 @@ class showTaskList(View):
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
-                           "complete_time": j.complete_time, "sub_task_label":i.task_label}
+                           "complete_time": j.complete_time, "subTaskLabel":getLabelName(i.task_label)}
 
                 if j.status != Task.COMPLETED:
                     if cur_time > j.deadline:
@@ -428,7 +432,7 @@ class watchMyTask(View):
                 j = Task.objects.get(id=subtask.task_id_id)
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
-                           "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,"sub_label":j.task_label,
+                           "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,"subTaskLabel":getLabelName(i.task_label),
                            "complete_time": j.complete_time}
 
                 if j.status != Task.COMPLETED:

@@ -16,9 +16,8 @@ from hashlib import sha256
 # TODO : add check manager function
 def isAdmin(userId):
   try:
-    status = User.objects.get(id=userId).status
     auth = User.objects.get(id=userId).auth
-    if status != User.ADMIN or auth == User.STUDENT:
+    if auth == User.STUDENT:
       return False
     return True
   except Exception as e:
@@ -340,13 +339,7 @@ class ChangeUserAuthority(View):
     genResponseStateInfo(response, 0, "get assistant projects ok")
     managerId = kwargs.get('managerId')
 
-    # print(managerId)
-
-    DBG("---- in " + managerId + " ----")
     managerAuth = User.objects.get(id=managerId).auth
-
-
-
     userId = kwargs.get('userId')
     user = User.objects.get(id=userId)
     userAuth = user.auth
