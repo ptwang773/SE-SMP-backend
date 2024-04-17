@@ -17,6 +17,17 @@ class User(models.Model):
         (ILLEGAL, 'ILLEGAL'),
         (ADMIN, 'ADMIN'),
     )
+
+    STUDENT = 1
+    ASSISTANT = 2
+    TEACHER = 3
+    AUTH_LIST = (
+        (STUDENT, 'STUDENT')
+        , (ASSISTANT, 'ASSISTANT')
+        , (TEACHER, 'TEACHER')
+    )
+    auth = models.IntegerField(choices=AUTH_LIST, default=STUDENT)
+
     RED = 'A'
     ORANGE = 'B'
     GREEN = 'C'
