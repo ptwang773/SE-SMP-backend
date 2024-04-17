@@ -156,6 +156,7 @@ def get_user_information(request):
             'projects': projects,
             'status': user.status,
             'topic': user.color,
+            'auth':user.auth,
         }
     )
 
