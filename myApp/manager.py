@@ -339,13 +339,7 @@ class ChangeUserAuthority(View):
     genResponseStateInfo(response, 0, "get assistant projects ok")
     managerId = kwargs.get('managerId')
 
-    # print(managerId)
-
-    DBG("---- in " + managerId + " ----")
     managerAuth = User.objects.get(id=managerId).auth
-
-
-
     userId = kwargs.get('userId')
     user = User.objects.get(id=userId)
     userAuth = user.auth
