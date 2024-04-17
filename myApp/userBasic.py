@@ -128,6 +128,7 @@ def login(request):
             'projects': projects,
             'status': user.status,
             'topic': user.color,
+            'auth': user.auth
         }
     )
 
@@ -263,6 +264,7 @@ def modify_information(request):
                 'projects': projects,
                 'status': user.status,
                 'topic': user.color,
+                'auth':user.auth
             }
         )
     except Exception as exp:
@@ -291,5 +293,6 @@ def save_topic(request):
             'projects': projects,
             'status': user.status,
             'topic': user.color,
+            'auth': user.auth
         }
     )

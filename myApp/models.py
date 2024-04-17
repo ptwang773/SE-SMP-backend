@@ -42,7 +42,7 @@ class User(models.Model):
         (BLUE, 'BLUE'),
         (PURPLE, 'PUR')
     )
-    color  = models.CharField(max_length=10, choices=COLOR_LIST)
+    color = models.CharField(max_length=10, choices=COLOR_LIST)
     status = models.CharField(max_length=2, choices=STATUS_LIST)
 
 
@@ -104,7 +104,7 @@ class Task(models.Model):
         (ENHANCE, 'ENHANCEMENT'),
         (FEATURE, 'FEATURE')
     )
-    task_label = models.CharField(max_length=255,choices=LABEL_LIST, default=None,null=True)
+    task_label = models.CharField(max_length=255, choices=LABEL_LIST, default=None, null=True)
 
 
 class TaskReview(models.Model):
@@ -114,6 +114,7 @@ class TaskReview(models.Model):
     content = models.TextField()
     create_time = models.DateTimeField()
 
+
 class Group(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
@@ -122,10 +123,10 @@ class Group(models.Model):
     PRIVATE = 'PRI'
     PUBLIC = 'PUB'
     TYPE_LIST = (
-    (PRIVATE, 'PRIVATE'),
-    (PUBLIC, 'PUBLIC')
+        (PRIVATE, 'PRIVATE'),
+        (PUBLIC, 'PUBLIC')
     )
-    type          = models.CharField(max_length=5, choices=TYPE_LIST)
+    type = models.CharField(max_length=5, choices=TYPE_LIST)
 
 
 class Notice(models.Model):
@@ -167,27 +168,31 @@ class Message(models.Model):
 
 
 class Document(models.Model):
-    id            = models.AutoField(primary_key=True)
-    name          = models.CharField(max_length=255)
-    outline       = models.TextField()
-    content       = models.TextField()
-    time          = models.DateTimeField(auto_now_add=True)
-    project_id    = models.ForeignKey(Project, on_delete=models.CASCADE)
-    user_id       = models.ForeignKey(User, on_delete=models.CASCADE)
-  
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    outline = models.TextField()
+    content = models.TextField()
+    time = models.DateTimeField(auto_now_add=True)
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+
+
 class UserCollectDoc(models.Model):
-  id            = models.AutoField(primary_key=True)
-  user_id       = models.ForeignKey(User, on_delete=models.CASCADE)
-  doc_id        = models.ForeignKey(Document, on_delete=models.CASCADE)
-  
+    id = models.AutoField(primary_key=True)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    doc_id = models.ForeignKey(Document, on_delete=models.CASCADE)
+
+
 class UserAccessDoc(models.Model):
-  id            = models.AutoField(primary_key=True)
-  user_id       = models.ForeignKey(User, on_delete=models.CASCADE)
-  doc_id        = models.ForeignKey(Document, on_delete=models.CASCADE)
-  
+    id = models.AutoField(primary_key=True)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    doc_id = models.ForeignKey(Document, on_delete=models.CASCADE)
+
+
 class UserDocLock(models.Model):
-  doc_id        = models.ForeignKey(Document, on_delete=models.CASCADE, unique=True)
-  user_id       = models.ForeignKey(User, on_delete=models.CASCADE)
+    doc_id = models.ForeignKey(Document, on_delete=models.CASCADE, unique=True)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+
 
 class Post(models.Model):
     id = models.AutoField(primary_key=True)
@@ -290,6 +295,7 @@ class UserProjectRepo(models.Model):
 class ProgressTask(models.Model):
     repo_id = models.ForeignKey(Repo, on_delete=models.CASCADE)
     progress_id = models.ForeignKey(Progress, on_delete=models.CASCADE)
+
 
 class AssistantProject(models.Model):
     assistant_id = models.ForeignKey(User, on_delete=models.CASCADE)
