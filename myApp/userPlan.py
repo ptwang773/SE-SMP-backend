@@ -10,6 +10,15 @@ import datetime
 validTaskLabel = {"A", "B", "C", "D", "E"}
 validTaskLabelContent = {"BUG","ENHANCEMENT","FEATURE","DUPLICATE","QUESTION"}
 
+Label_Content_KV = {
+    "BUG": "A",
+    "ENHANCEMENT": "B",
+    "FEATURE": "C",
+    "DUPLICATE": "D",
+    "QUESTION": "E"
+}
+
+
 # --------------------project level--------------------
 def getLabelName(label):
     label_dict = dict(Task.LABEL_LIST)
@@ -256,7 +265,7 @@ class addSubTask(View):
         deadline = datetime.datetime(year=year, month=month, day=day)
         startTime = datetime.datetime(year=y, month=m, day=d)
         task = Task.objects.create(name=name, deadline=deadline, contribute_level=contribute, project_id_id=projectId,
-                                   parent_id_id=belongTask, start_time=startTime, task_label=label)
+                                   parent_id_id=belongTask, start_time=startTime, task_label=Label_Content_KV[label])
         task.status = Task.NOTSTART
         task.save()
 
