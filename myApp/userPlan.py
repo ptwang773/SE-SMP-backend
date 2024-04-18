@@ -7,19 +7,16 @@ from myApp.userChat import delete_user_from_groups
 import json
 import datetime
 
+validTaskLabel = {"A", "B", "C", "D", "E"}
 
-validTaskLabel = {"A","B","C"}
 
 # --------------------project level--------------------
 def getLabelName(label):
-    print("********",label)
     label_dict = dict(Task.LABEL_LIST)
-    label_name = label_dict.get(label)
-    if label_name is not None:
-        return label_name
-    else:
+    if label not in validTaskLabel:
         return "None"
-
+    else:
+        return label_dict[label]
 
 
 def canManage(userId, projectId):
@@ -229,7 +226,7 @@ class addSubTask(View):
         y = int(y)
         m = int(m)
         d = int(d)
-        print(" ***A**AS*D*A*S*DSA**DS :",label)
+        print(" ***A**AS*D*A*S*DSA**DS :", label)
         if Project.objects.filter(id=projectId).count() == 0:
             response['errcode'] = 1
             response['message'] = "project not exist"
@@ -250,7 +247,7 @@ class addSubTask(View):
             response['message'] = "permission denied"
             response['data'] = None
             return JsonResponse(response)
-        if label not in validTaskLabel and not (label is None or len(label) == 0) :
+        if label not in validTaskLabel and not (label is None or len(label) == 0):
             response['errcode'] = 4
             response['message'] = "wrong Label"
             response['data'] = None

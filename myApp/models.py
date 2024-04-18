@@ -97,10 +97,14 @@ class Task(models.Model):
     BUG = 'A'
     ENHANCE = 'B'
     FEATURE = 'C'
+    DUPLICATE = "D"
+    QUESTION = "E"
     LABEL_LIST = (
         (BUG, 'BUG'),
         (ENHANCE, 'ENHANCEMENT'),
-        (FEATURE, 'FEATURE')
+        (FEATURE, 'FEATURE'),
+        (DUPLICATE,"DUPLICATE"),
+        (QUESTION, "QUESTION")
     )
     task_label = models.CharField(max_length=255, choices=LABEL_LIST, default=None, null=True)
 
