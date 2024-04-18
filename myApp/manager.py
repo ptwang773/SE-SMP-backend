@@ -424,7 +424,7 @@ class ChangeUserAuthority(View):
 
         if changeToAuth not in validAuthority:
             return JsonResponse(genResponseStateInfo(response, 3, "Invalid authority"))
-        if managerAuth < changeToAuth or managerAuth < userAuth:
+        if managerAuth < changeToAuth or managerAuth <= userAuth:
             return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
 
         if userAuth == changeToAuth:
