@@ -475,8 +475,12 @@ class AddAssistantProject(View):
         response = {}
         genResponseStateInfo(response, 0, "add assistant project ok")
         managerId = kwargs.get('managerId')
+        if not User.objects.filter(id=managerId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "teacher does not exists"))
         manager = User.objects.get(id=managerId)
         userId = kwargs.get('userId')
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "assistant does not exists"))
         user = User.objects.get(id=userId)
         projectId = kwargs.get('projectId')
         if not Project.objects.filter(id=projectId).exists():
@@ -508,12 +512,16 @@ class RemoveAssistantProject(View):
         genResponseStateInfo(response, 0, "remove assistant project ok")
 
         managerId = kwargs.get('managerId')
+        if not User.objects.filter(id=managerId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "teacher does not exists"))
         manager = User.objects.get(id=managerId)
         userId = kwargs.get('userId')
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "assistant does not exists"))
         user = User.objects.get(id=userId)
         projectId = kwargs.get('projectId')
-        project = Project.objects.get(id=projectId)
-
+        if not Project.objects.filter(id=projectId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "project does not exists"))
         if manager.auth != 3 or user.auth != 2:
             return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
         ap = AssistantProject.objects.filter(assistant_id=userId, project_id=projectId)
