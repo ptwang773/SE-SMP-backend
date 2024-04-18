@@ -287,7 +287,7 @@ class showTaskList(View):
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
-                           "complete_time": j.complete_time, "subTaskLabel": getLabelName(i.task_label)}
+                           "complete_time": j.complete_time, "subTaskLabel": getLabelName(j.task_label)}
 
                 if j.status != Task.COMPLETED:
                     if cur_time > j.deadline:
