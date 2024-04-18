@@ -395,11 +395,34 @@ class ShowAssistantProjects(View):
         assistantProjects = AssistantProject.objects.filter(id=userId)
         for project in assistantProjects:
             leader = User.objects.get(id=project.manager_id.id)
-            projects.append({"name": project.name, "projectId": project.id,
-                             "leader": leader.name, "leaderId": leader.id,
-                             "email": leader.email, "createTime": project.create_time,
-                             "progress": project.progress, "status": project.status,
-                             "access": project.access})
+            projects.append({
+                "name": project.name,
+                "projectId": project.id,
+                "leader": leader.name,
+                "leaderId": leader.id,
+                "email": leader.email,
+                "createTime": project.create_time,
+                "progress": project.progress,
+                "status": project.status,
+                "access": project.access,
+                "isManage": 1  # 在助理能管理项目中，设置 isManage 为 1
+            })
+        # 获取不在助理项目中的项目
+        otherProjects = Project.objects.exclude(id__in=assistantProjects.values_list('id', flat=True))
+        for project in otherProjects:
+            leader = User.objects.get(id=project.manager_id.id)
+            projects.append({
+                "name": project.name,
+                "projectId": project.id,
+                "leader": leader.name,
+                "leaderId": leader.id,
+                "email": leader.email,
+                "createTime": project.create_time,
+                "progress": project.progress,
+                "status": project.status,
+                "access": project.access,
+                "isManage": 0  # 不在助理管理项目中，设置 isManage 为 0
+            })
         response["project"] = projects
         return JsonResponse(response)
 
