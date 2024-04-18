@@ -459,8 +459,9 @@ class AddAssistantProject(View):
         userId = kwargs.get('userId')
         user = User.objects.get(id=userId)
         projectId = kwargs.get('projectId')
+        if not Project.objects.filter(id=projectId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "project does not exists"))
         project = Project.objects.get(id=projectId)
-
         if manager.auth != 3 or user.auth != 2:
             return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
         if not len(AssistantProject.objects.filter(assistant_id=userId, project_id=projectId)) == 0:

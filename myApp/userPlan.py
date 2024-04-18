@@ -14,6 +14,7 @@ def getLabelName(label):
     label_name = [name for value, name in Task.LABEL_LIST if value == label][0]
     return label_name
 
+
 def canManage(userId, projectId):
     try:
         user = User.objects.get(id=userId)
@@ -23,12 +24,13 @@ def canManage(userId, projectId):
         if user.auth == 3:
             return True
         if user.auth == 2 and \
-            len(AssistantProject.objects.filter(assistant_id = userId, project_id = projectId))!=0:
+                len(AssistantProject.objects.filter(assistant_id=userId, project_id=projectId)) != 0:
             return True
         return False
     except:
         return False
-    
+
+
 class newProject(View):
     def post(self, request):
         response = {'message': "404 not success", "errcode": 1}
@@ -65,7 +67,7 @@ class watchAllProject(View):
                     i.project_id.create_time.day),
                 "managerId": i.project_id.manager_id.id,
                 "managerName": i.project_id.manager_id.name,
-                "access":i.project_id.access
+                "access": i.project_id.access
             })
         response['errcode'] = 0
         response['message'] = "success"
@@ -213,7 +215,7 @@ class addSubTask(View):
         projectId = kwargs.get("projectId", -1)
         belongTask = kwargs.get("fatherTaskId", -1)
         managerId = kwargs.get("managerId", -1)
-        label = kwargs.get("subTaskLabel",None)
+        label = kwargs.get("subTaskLabel", None)
 
         t = kwargs.get("start_time", "")
         y, m, d = t.split("-")
@@ -246,7 +248,7 @@ class addSubTask(View):
         deadline = datetime.datetime(year=year, month=month, day=day)
         startTime = datetime.datetime(year=y, month=m, day=d)
         task = Task.objects.create(name=name, deadline=deadline, contribute_level=contribute, project_id_id=projectId,
-                                   parent_id_id=belongTask, start_time=startTime,task_label=label)
+                                   parent_id_id=belongTask, start_time=startTime, task_label=label)
         task.status = Task.NOTSTART
         task.save()
 
@@ -285,7 +287,7 @@ class showTaskList(View):
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
-                           "complete_time": j.complete_time, "subTaskLabel":getLabelName(i.task_label)}
+                           "complete_time": j.complete_time, "subTaskLabel": getLabelName(i.task_label)}
 
                 if j.status != Task.COMPLETED:
                     if cur_time > j.deadline:
@@ -328,7 +330,7 @@ class modifyTaskContent(View):
         taskName = kwargs.get("taskName", "")
         managerId = kwargs.get("managerId", -1)
         startTime = kwargs.get("start_time", "")
-        label = kwargs.get("label",None)
+        label = kwargs.get("label", None)
         y, m, d = startTime.split("-")
         y = int(y)
         m = int(m)
@@ -432,7 +434,8 @@ class watchMyTask(View):
                 j = Task.objects.get(id=subtask.task_id_id)
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
-                           "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,"subTaskLabel":getLabelName(i.task_label),
+                           "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
+                           "subTaskLabel": getLabelName(i.task_label),
                            "complete_time": j.complete_time}
 
                 if j.status != Task.COMPLETED:
@@ -492,8 +495,9 @@ class removeTask(View):
         response['data'] = None
         return JsonResponse(response)
 
+
 class getTaskReviews(View):
-    def post(self,request):
+    def post(self, request):
         response = {'errcode': 1, 'message': "404 not success"}
 
         try:
@@ -514,21 +518,23 @@ class getTaskReviews(View):
             review = TaskReview.objects.get(pk=i.id)
 
             user = review.user_id
-            reviews.append({"userName": user.name, "content":review.content,"createTime":review.create_time})
+            reviews.append(
+                {"userId": user.id, "userName": user.name, "content": review.content, "createTime": review.create_time})
         response['errcode'] = 0
         response['message'] = "get task reviews ok"
         response['data'] = {"reviews": reviews}
         return JsonResponse(response)
 
+
 class reviewTask(View):
-    def post(self,request):
+    def post(self, request):
         response = {'errcode': 1, 'message': "404 not success"}
         try:
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
 
-        userId = kwargs.get("userId",-1)
+        userId = kwargs.get("userId", -1)
         taskId = kwargs.get("taskId", -1)
         content = kwargs.get("content", -1)
 
@@ -552,10 +558,12 @@ class reviewTask(View):
             response['data'] = None
             return JsonResponse(response)
 
-        TaskReview.objects.create(task_id=task, content=content,user_id=user, create_time=timezone.now())
+        TaskReview.objects.create(task_id=task, content=content, user_id=user, create_time=timezone.now())
         response['errcode'] = 0
         response['message'] = "success review"
         return JsonResponse(response)
+
+
 # ----------member level---------------------------
 
 
@@ -1016,13 +1024,14 @@ class ProjectInfo(View):
                 i.create_time.day),
             "managerId": i.manager_id.id,
             "managerName": i.manager_id.name,
-            "access":i.access
+            "access": i.access
         }
 
         response['errcode'] = 0
         response['data'] = ans
         response['message'] = "success"
         return JsonResponse(response)
+
 
 class getUserProjectAuths(View):
     def post(self, request):
@@ -1040,37 +1049,37 @@ class getUserProjectAuths(View):
             response['data'] = None
             return JsonResponse(response)
         project = Project.objects.get(id=projectId)
-        
+
         personId = kwargs.get("personId", -1)
         if User.objects.filter(id=personId).count() == 0:
             response['errcode'] = 3
             response['message'] = "user not exist"
             response['data'] = None
             return JsonResponse(response)
-        
+
         userId = kwargs.get("userId", -1)
         if User.objects.filter(id=userId).count() == 0:
             response['errcode'] = 3
             response['message'] = "user not exist"
             response['data'] = None
             return JsonResponse(response)
-        
+
         userProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
-        if len(userProject)==0:
+        if len(userProject) == 0:
             response['errcode'] = 4
             response['message'] = "no such user in project"
             response['data'] = None
             return JsonResponse(response)
         userProject = userProject.first()
 
-        if not canManage(userId, projectId) :
+        if not canManage(userId, projectId):
             response['errcode'] = 1
             response['message'] = "Insufficient authority"
             response['data'] = None
             return JsonResponse(response)
 
         personProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
-        if len(personProject)==0:
+        if len(personProject) == 0:
             response['errcode'] = 4
             response['message'] = "no such user in project"
             response['data'] = None
@@ -1085,6 +1094,7 @@ class getUserProjectAuths(View):
         response["data"] = data
         return JsonResponse(response)
 
+
 class changeUserProjectAuths(View):
     def post(self, request):
         response = {'errcode': 0, 'message': "404 not success"}
@@ -1092,7 +1102,7 @@ class changeUserProjectAuths(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-        
+
         response['message'] = "change user project authority ok"
         projectId = kwargs.get("projectId", -1)
         if Project.objects.filter(id=projectId).count() == 0:
@@ -1101,37 +1111,37 @@ class changeUserProjectAuths(View):
             response['data'] = None
             return JsonResponse(response)
         project = Project.objects.get(id=projectId)
-        
+
         personId = kwargs.get("personId", -1)
         if User.objects.filter(id=personId).count() == 0:
             response['errcode'] = 3
             response['message'] = "user not exist"
             response['data'] = None
             return JsonResponse(response)
-        
+
         userId = kwargs.get("userId", -1)
         if User.objects.filter(id=userId).count() == 0:
             response['errcode'] = 3
             response['message'] = "user not exist"
             response['data'] = None
             return JsonResponse(response)
-        
+
         userProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
-        if len(userProject)==0:
+        if len(userProject) == 0:
             response['errcode'] = 4
             response['message'] = "no such user in project"
             response['data'] = None
             return JsonResponse(response)
         userProject = userProject.first()
 
-        if not canManage(userId, projectId) :
+        if not canManage(userId, projectId):
             response['errcode'] = 1
             response['message'] = "Insufficient authority"
             response['data'] = None
             return JsonResponse(response)
 
         personProject = UserProject.objects.filter(user_id=personId, project_id=projectId)
-        if len(personProject)==0:
+        if len(personProject) == 0:
             response['errcode'] = 4
             response['message'] = "no such user in project"
             response['data'] = None
@@ -1142,22 +1152,22 @@ class changeUserProjectAuths(View):
         changeToEA = kwargs.get("changeToEditAuth")
         changeToVA = kwargs.get("changeToViewAuth")
 
-        if changeToCA != "Y" and changeToCA !="N":
+        if changeToCA != "Y" and changeToCA != "N":
             response['errcode'] = 5
             response['message'] = "undefined authority"
             response['data'] = None
             return JsonResponse(response)
-        if changeToEA != "Y" and changeToEA !="N":
+        if changeToEA != "Y" and changeToEA != "N":
             response['errcode'] = 5
             response['message'] = "undefined authority"
             response['data'] = None
             return JsonResponse(response)
-        if changeToVA != "Y" and changeToVA !="N":
+        if changeToVA != "Y" and changeToVA != "N":
             response['errcode'] = 5
             response['message'] = "undefined authority"
             response['data'] = None
             return JsonResponse(response)
-        
+
         personProject.commitAuth = changeToCA
         personProject.editAuth = changeToEA
         personProject.viewAuth = changeToVA
