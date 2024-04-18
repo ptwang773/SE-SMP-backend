@@ -10,9 +10,13 @@ import datetime
 
 # --------------------project level--------------------
 def getLabelName(label):
-    LABLE_LIST = Task.LABEL_LIST
-    label_name = [name for value, name in Task.LABEL_LIST if value == label][0]
-    return label_name
+    label_dict = dict(Task.LABEL_LIST)
+    label_name = label_dict.get(label)
+    if label_name is not None:
+        return label_name
+    else:
+        return "None"
+
 
 
 def canManage(userId, projectId):
