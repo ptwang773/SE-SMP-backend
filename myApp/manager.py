@@ -392,7 +392,8 @@ class ShowAssistantProjects(View):
             return JsonResponse(genResponseStateInfo(response, 3, "queried user is teacher"))
 
         projects = []
-        assistantProjects = AssistantProject.objects.filter(id=userId)
+        assistantProjects = Project.objects.filter(id__in=AssistantProject.objects.filter(assistant_id=userId))
+        print("******************************",assistantProjects.count())
         for project in assistantProjects:
             leader = User.objects.get(id=project.manager_id.id)
             projects.append({
