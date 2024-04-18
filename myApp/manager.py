@@ -208,16 +208,36 @@ class ShowAllProjects(View):
         if not isAdmin(managerId):
             return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
         projects = []
-        allProjects = Project.objects.all()
-        for project in allProjects:
-            leader = User.objects.get(id=project.manager_id.id)
-            projects.append({"name": project.name, "projectId": project.id,
-                             "leader": leader.name, "leaderId": leader.id,
-                             "email": leader.email, "createTime": project.create_time,
-                             "progress": project.progress, "status": project.status,
-                             "access": project.access})
-        response["projects"] = projects
-        return JsonResponse(response)
+        auth = User.objects.get(id=managerId).auth
+        if auth == 3:
+            allProjects = Project.objects.all()
+            for project in allProjects:
+                leader = User.objects.get(id=project.manager_id.id)
+                projects.append({"name": project.name, "projectId": project.id,
+                                 "leader": leader.name, "leaderId": leader.id,
+                                 "email": leader.email, "createTime": project.create_time,
+                                 "progress": project.progress, "status": project.status,
+                                 "access": project.access})
+            response["projects"] = projects
+            return JsonResponse(response)
+        else:
+            for project in Project.objects.all():
+                leader = User.objects.get(id=project.manager_id.id)
+                if AssistantProject.objects.filter(assistant_id=managerId, project_id=project.pk).count() == 0:
+                    continue
+                projects.append({
+                    "name": project.name,
+                    "projectId": project.id,
+                    "leader": leader.name,
+                    "leaderId": leader.id,
+                    "email": leader.email,
+                    "createTime": project.create_time,
+                    "progress": project.progress,
+                    "status": project.status,
+                    "access": project.access,
+                })
+            response["projects"] = projects
+            return JsonResponse(response)
 
 
 class ChangeProjectStatus(View):
@@ -409,7 +429,7 @@ class ShowAssistantProjects(View):
                 "access": project.access,
                 "isManage": isManage  # 不在助理管理项目中，设置 isManage 为 0
             })
-        response["project"] = projects
+        response["projects"] = projects
         return JsonResponse(response)
 
 
