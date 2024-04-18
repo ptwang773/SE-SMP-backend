@@ -8,8 +8,11 @@ import json
 import datetime
 
 
+validTaskLabel = {"A","B","C"}
+
 # --------------------project level--------------------
 def getLabelName(label):
+    print("********",label)
     label_dict = dict(Task.LABEL_LIST)
     label_name = label_dict.get(label)
     if label_name is not None:
@@ -226,7 +229,7 @@ class addSubTask(View):
         y = int(y)
         m = int(m)
         d = int(d)
-
+        print(" ***A**AS*D*A*S*DSA**DS :",label)
         if Project.objects.filter(id=projectId).count() == 0:
             response['errcode'] = 1
             response['message'] = "project not exist"
@@ -247,7 +250,11 @@ class addSubTask(View):
             response['message'] = "permission denied"
             response['data'] = None
             return JsonResponse(response)
-
+        if label not in validTaskLabel and not (label is None or len(label) == 0) :
+            response['errcode'] = 4
+            response['message'] = "wrong Label"
+            response['data'] = None
+            return JsonResponse(response)
         # use time[0] as year time[1] as month time[2] as day
         deadline = datetime.datetime(year=year, month=month, day=day)
         startTime = datetime.datetime(year=y, month=m, day=d)
@@ -439,7 +446,7 @@ class watchMyTask(View):
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
-                           "subTaskLabel": getLabelName(i.task_label),
+                           "subTaskLabel": getLabelName(j.task_label),
                            "complete_time": j.complete_time}
 
                 if j.status != Task.COMPLETED:
