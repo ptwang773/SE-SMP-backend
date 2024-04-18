@@ -13,11 +13,9 @@ class User(models.Model):
     last_login_time = models.DateTimeField()
     NORMAL = 'A'
     ILLEGAL = 'B'
-    ADMIN = 'C'
     STATUS_LIST = (
         (NORMAL, 'NORMAL'),
         (ILLEGAL, 'ILLEGAL'),
-        (ADMIN, 'ADMIN'),
     )
 
     STUDENT = 1

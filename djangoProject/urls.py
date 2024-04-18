@@ -33,6 +33,9 @@ urlpatterns = [
     path('api/userBindRepo', userdevelop.UserBindRepo.as_view()),
     path('api/management/showUsers', manager.ShowUsers.as_view()),
     path('api/management/showAdmins', manager.ShowAdmins.as_view()),
+    path('api/management/showAssistants', manager.ShowAssistants.as_view()),
+    path('api/management/showTeachers', manager.ShowTeachers.as_view()),
+
     path('api/management/changeUserStatus', manager.ChangeUserStatus.as_view()),
     path('api/management/resetUserPassword', manager.ResetUserPassword.as_view()),
     path('api/management/showAllProjects', manager.ShowAllProjects.as_view()),
