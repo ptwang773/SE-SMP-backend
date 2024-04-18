@@ -8,7 +8,7 @@ import json
 import datetime
 
 validTaskLabel = {"A", "B", "C", "D", "E"}
-
+validTaskLabelContent = {"BUG","ENHANCEMENT","FEATURE","DUPLICATE","QUESTION"}
 
 # --------------------project level--------------------
 def getLabelName(label):
@@ -247,7 +247,7 @@ class addSubTask(View):
             response['message'] = "permission denied"
             response['data'] = None
             return JsonResponse(response)
-        if label not in validTaskLabel and not (label is None or len(label) == 0):
+        if label not in validTaskLabelContent and not (label is None or len(label) == 0):
             response['errcode'] = 4
             response['message'] = "wrong Label"
             response['data'] = None
