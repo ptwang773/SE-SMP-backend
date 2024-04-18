@@ -392,10 +392,11 @@ class ShowAssistantProjects(View):
             return JsonResponse(genResponseStateInfo(response, 3, "queried user is teacher"))
 
         projects = []
-        assistantProjects = Project.objects.filter(id__in=AssistantProject.objects.filter(assistant_id=userId))
-        print("******************************",assistantProjects.count())
-        for project in assistantProjects:
+        for project in Project.objects.all():
             leader = User.objects.get(id=project.manager_id.id)
+            if AssistantProject.objects.filter(assistant_id=userId,project_id=project.pk).count() != 0:
+                isManage = 1
+            else: isManage = 0
             projects.append({
                 "name": project.name,
                 "projectId": project.id,
@@ -406,23 +407,7 @@ class ShowAssistantProjects(View):
                 "progress": project.progress,
                 "status": project.status,
                 "access": project.access,
-                "isManage": 1  # 在助理能管理项目中，设置 isManage 为 1
-            })
-        # 获取不在助理项目中的项目
-        otherProjects = Project.objects.exclude(id__in=assistantProjects.values_list('id', flat=True))
-        for project in otherProjects:
-            leader = User.objects.get(id=project.manager_id.id)
-            projects.append({
-                "name": project.name,
-                "projectId": project.id,
-                "leader": leader.name,
-                "leaderId": leader.id,
-                "email": leader.email,
-                "createTime": project.create_time,
-                "progress": project.progress,
-                "status": project.status,
-                "access": project.access,
-                "isManage": 0  # 不在助理管理项目中，设置 isManage 为 0
+                "isManage": isManage  # 不在助理管理项目中，设置 isManage 为 0
             })
         response["project"] = projects
         return JsonResponse(response)
