@@ -4,11 +4,12 @@ from django.utils import timezone
 from myApp.models import *
 from django.views import View
 from myApp.userChat import delete_user_from_groups
+from django.db.models import Q
 import json
 import datetime
 
-validTaskLabel = {"A", "B", "C", "D", "E"}
-validTaskLabelContent = {"BUG","ENHANCEMENT","FEATURE","DUPLICATE","QUESTION"}
+validTaskLabel = ["A", "B", "C", "D", "E"]
+validTaskLabelContent = ["BUG","ENHANCEMENT","FEATURE","DUPLICATE","QUESTION"]
 
 Label_Content_KV = {
     "BUG": "A",
@@ -371,9 +372,15 @@ class modifyTaskContent(View):
         task.start_time = datetime.datetime(year=y, month=m, day=d)
         task.contribute_level = contribute
         task.name = taskName
-        task.label = label
-        task.save()
-
+        try:
+            index = validTaskLabelContent.index(label)
+            task.task_label = Task.LABEL_LIST[index][0]
+            task.save()
+            print(label, index, Task.LABEL_LIST[index][0])
+        except ValueError:
+            task.label = None
+            task.save()
+            print("元素 '{}' 不存在于label列表中".format(label))
         UserTask.objects.filter(task_id=task).delete()
         UserTask.objects.create(user_id_id=managerId, task_id=task)
 
@@ -1025,7 +1032,8 @@ class ProjectInfo(View):
             response['data'] = None
             return JsonResponse(response)
 
-        if User.objects.filter(id=request.user.id, status=User.ADMIN).count() == 0:
+        condition = Q(id=request.user.id) & (Q(auth=User.TEACHER) | Q(auth=User.ASSISTANT))
+        if User.objects.filter(condition).count() == 0:
             response['errcode'] = 3
             response['message'] = "user not admin"
             response['data'] = request.user.id
