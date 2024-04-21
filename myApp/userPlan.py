@@ -9,7 +9,7 @@ import json
 import datetime
 
 validTaskLabel = ["A", "B", "C", "D", "E"]
-validTaskLabelContent = ["BUG","ENHANCEMENT","FEATURE","DUPLICATE","QUESTION"]
+validTaskLabelContent = ["BUG", "ENHANCEMENT", "FEATURE", "DUPLICATE", "QUESTION"]
 
 Label_Content_KV = {
     "BUG": "A",
@@ -33,7 +33,9 @@ def canManage(userId, projectId):
     try:
         user = User.objects.get(id=userId)
         project = Project.objects.get(id=projectId)
-        if project.manager_id == userId:
+        print("**********", userId, project.manager_id_id)
+        if project.manager_id == user:
+            print("heeee")
             return True
         if user.auth == 3:
             return True
