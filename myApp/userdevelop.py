@@ -911,8 +911,7 @@ class GetCommitDetails(View):
 
             if not Commit.objects.filter(sha=sha).exists():
                 tmp_commit = Commit.objects.create(repo_id=repo, sha=sha,
-                                                   committer_name=data["commit"]["committer"]["name"],
-                                                   review_status=None)
+                                                   committer_name=data["commit"]["committer"]["name"])
             else:
                 tmp_commit = Commit.objects.filter(sha=sha)[0]
             changes = []

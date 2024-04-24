@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.views import View
 import json
 import datetime
-from google.cloud import language_v1
+# from google.cloud import language_v1
 #import git
 
 # openai.organization = "org-fBoqj45hvJisAEGMR5cvPnDS"
