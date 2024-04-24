@@ -842,13 +842,35 @@ class GitBranchCommit(View):
         return JsonResponse(response)
 
 
-def isProjectReviewer(projectId):
-    users = UserProject.objects.filter(projectId=projectId)
-    for user in users:
-        tmp = UserProject.objects.get(projectId=projectId, userId=user.id)
-        if tmp.role == UserProject.REVIEWER:
-            return True
-    return False
+class IsProjectReviewer(View):
+    def post(self, request):
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "check reviewer ok")
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        response['flag'] = 0
+        if not UserProject.objects.filter(project_id=projectId, user_id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 2, "user is not in Project"))
+        tmp = UserProject.objects.get(project_id=projectId, user_id=userId)
+        if tmp is None or tmp.role == UserProject.NORMAL:
+            return JsonResponse(genResponseStateInfo(response, 1, "user is not reviewer"))
+        else:
+            response['flag'] = 1
+            return JsonResponse(response)
+
+
+def isProjectReviewer(userId, projectId):
+    if not UserProject.objects.filter(project_id=projectId, user_id=userId).exists():
+        return False
+    tmp = UserProject.objects.get(project_id=projectId, user_id=userId)
+    if tmp is None or tmp.role == UserProject.NORMAL:
+        return False
+    else:
+        return True
 
 
 def getCommitComment(commitId):
@@ -931,3 +953,94 @@ class GetCommitDetails(View):
             response["errcode"] = -1
             releaseSemaphore(repoId)
             return JsonResponse(response)
+
+
+class ModifyCommitStatus(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "modify commit status ok")
+        sha = kwargs.get('sha')
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        status = kwargs.get('reviewStatus')
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 6, "invalid token"))
+
+        if not isProjectReviewer(userId, projectId):
+            return JsonResponse(genResponseStateInfo(response, 7, "permission denied"))
+        if not Commit.objects.filter(sha=sha).exists():
+            return JsonResponse(genResponseStateInfo(response, 10, "commit is not exists"))
+
+        tmp_commit = Commit.objects.filter(sha=sha)[0]
+        if tmp_commit.review_status is not None:
+            return JsonResponse(genResponseStateInfo(response, 9, "can not approve/reject twice"))
+        if status == 0 or status == 1:
+            tmp_commit.review_status = Commit.Y if status == 1 else Commit.N
+            tmp_commit.save()
+        else:
+            return JsonResponse(
+                genResponseStateInfo(response, 8, "wrong review status, must approve/reject please"))
+        return JsonResponse(response)
+
+
+class CommentCommit(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "comment commit ok")
+        sha = kwargs.get('sha')
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        comment = kwargs.get('comment')
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 6, "invalid token"))
+
+        if not isProjectReviewer(userId, projectId):
+            return JsonResponse(genResponseStateInfo(response, 7, "permission denied"))
+
+        if not Commit.objects.filter(sha=sha).exists():
+            return JsonResponse(genResponseStateInfo(response, 8, "commit is not exists"))
+
+        reviewer = User.objects.get(id=userId)
+        tmp_commit = Commit.objects.filter(sha=sha)[0]
+        CommitComment.objects.create(commit_id=tmp_commit,reviewer_id=reviewer,comment=comment)
+        return JsonResponse(response)
