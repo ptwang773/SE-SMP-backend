@@ -42,6 +42,7 @@ class User(models.Model):
     )
     color = models.CharField(max_length=10, choices=COLOR_LIST)
     status = models.CharField(max_length=2, choices=STATUS_LIST)
+    token = models.CharField(max_length=255, null=True)
 
 
 class Project(models.Model):
@@ -103,7 +104,7 @@ class Task(models.Model):
         (BUG, 'BUG'),
         (ENHANCE, 'ENHANCEMENT'),
         (FEATURE, 'FEATURE'),
-        (DUPLICATE,"DUPLICATE"),
+        (DUPLICATE, "DUPLICATE"),
         (QUESTION, "QUESTION")
     )
     task_label = models.CharField(max_length=255, choices=LABEL_LIST, default=None, null=True)
@@ -247,10 +248,12 @@ class UserProject(models.Model):
     NORMAL = 'A'
     ADMIN = 'B'
     DEVELOPER = "C"
+    REVIEWER = "D"
     ROLE_LIST = (
         (NORMAL, 'NORMAL'),
         (ADMIN, 'ADMIN'),
         (DEVELOPER, 'DEVELOPER'),
+        (REVIEWER,'REVIEWER'),
     )
 
     role = models.CharField(max_length=3, choices=ROLE_LIST)
@@ -302,5 +305,26 @@ class ProgressTask(models.Model):
 class AssistantProject(models.Model):
     assistant_id = models.ForeignKey(User, on_delete=models.CASCADE)
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+
+
+class Commit(models.Model):
+    id = models.AutoField(primary_key=True)
+    repo_id = models.ForeignKey(Repo, on_delete=models.CASCADE)
+    sha = models.CharField(max_length=255)
+    committer_name = models.CharField(max_length=255)
+    committer_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None)
+    Y = 'Y'
+    N = 'N'
+    YON = (
+        (Y, 'Y'),
+        (N, 'N'),
+    )
+    review_status = models.CharField(max_length=3, choices=YON, default=None)
+
+
+class CommitComment(models.Model):
+    commit_id = models.ForeignKey(Commit, on_delete=models.CASCADE)
+    reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.CharField(max_length=255)
 
 # TODO : add enum check in function

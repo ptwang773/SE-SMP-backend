@@ -14,14 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-#from django.contrib import admin
+# from django.contrib import admin
 from django.urls import path, include
 
-from myApp import userdevelop, manager, userBasic, userPlan, debug, AI, shareDoc,file,mail
+from myApp import userdevelop, manager, userBasic, userPlan, debug, AI, shareDoc, file, mail
 from myApp import notice, userChat
 from django.urls import re_path
 from myApp import chatConsumer
-
 
 websocket_urlpatterns = [
     re_path(r"ws/chat/(?P<userId>\w+)/(?P<roomId>\w+)$",
@@ -29,7 +28,7 @@ websocket_urlpatterns = [
 ]
 
 urlpatterns = [
-#    path('admin/', admin.site.urls),
+    #    path('admin/', admin.site.urls),
     path('api/userBindRepo', userdevelop.UserBindRepo.as_view()),
     path('api/management/showUsers', manager.ShowUsers.as_view()),
     path('api/management/showAdmins', manager.ShowAdmins.as_view()),
@@ -60,9 +59,9 @@ urlpatterns = [
     path('api/develop/getPrList', userdevelop.GetPrList.as_view()),
     path('api/develop/getFileTree', userdevelop.GetFileTree.as_view()),
     path('api/develop/getContent', userdevelop.GetContent.as_view()),
-    path('api/develop/getRepoAllFiles',userdevelop.GetRepoAllFiles.as_view()),
-    path('api/develop/getRepoFile',userdevelop.GetRepoFile.as_view()),
-    path('api/develop/gitCommit',userdevelop.GitCommit.as_view()),
+    path('api/develop/getRepoAllFiles', userdevelop.GetRepoAllFiles.as_view()),
+    path('api/develop/getRepoFile', userdevelop.GetRepoFile.as_view()),
+    path('api/develop/gitCommit', userdevelop.GitCommit.as_view()),
 
     path('api/register', userBasic.register),
     path('api/login', userBasic.login),
@@ -71,6 +70,9 @@ urlpatterns = [
     path('api/showProfile', userBasic.show),
     path('api/editProfile', userBasic.modify_information),
     path('api/saveTopic', userBasic.save_topic),
+    path('api/modifyToken', userBasic.modify_token),
+    path('api/checkToken', userBasic.check_token),
+
     path('api/plan/newProject', userPlan.newProject.as_view()),
     path('api/plan/watchAllProject', userPlan.watchAllProject.as_view()),
     path('api/plan/addTask', userPlan.addTask.as_view()),
@@ -93,10 +95,10 @@ urlpatterns = [
     path('api/plan/modifyNotice', userPlan.modifyNotice.as_view()),
     path('api/plan/removeNotice', userPlan.removeNotice.as_view()),
 
-    path('api/plan/getTaskReviews',userPlan.getTaskReviews.as_view()),
-    path('api/plan/reviewTask',userPlan.reviewTask.as_view()),
-    path('api/plan/getUserProjectAuths',userPlan.getUserProjectAuths.as_view()),
-    path('api/plan/changeUserProjectAuths',userPlan.changeUserProjectAuths.as_view()),
+    path('api/plan/getTaskReviews', userPlan.getTaskReviews.as_view()),
+    path('api/plan/reviewTask', userPlan.reviewTask.as_view()),
+    path('api/plan/getUserProjectAuths', userPlan.getUserProjectAuths.as_view()),
+    path('api/plan/changeUserProjectAuths', userPlan.changeUserProjectAuths.as_view()),
 
     path('api/echo', debug.echo),
     path('api/notice/userPostNoticeToAll', notice.UserPostNoticeToAll.as_view()),
@@ -108,8 +110,8 @@ urlpatterns = [
     path('api/plan/getEmail', userPlan.getEmail.as_view()),
     path('api/ai/UnitTest', AI.UnitTest.as_view()),
     path('api/ai/CodeReview', AI.CodeReview.as_view()),
-    path('api/plan/showContribute',userPlan.showContribute.as_view()),
-    path('api/plan/changeOrder',userPlan.changeOrder.as_view()),
+    path('api/plan/showContribute', userPlan.showContribute.as_view()),
+    path('api/plan/changeOrder', userPlan.changeOrder.as_view()),
     path('api/doc/userDocList', shareDoc.UserDocList.as_view()),
     path('api/doc/userCollectDocList', shareDoc.UserCollectDocList.as_view()),
     path('api/doc/addDocToCollect', shareDoc.AddDocToCollect.as_view()),
@@ -129,9 +131,9 @@ urlpatterns = [
     path('api/chat/addPerson', userChat.add_user_to_group),
     path('api/chat/deletePerson', userChat.delete_user_from_group),
     # path('api/doc/docTimeUpdate', shareDoc.DocTimeUpdate.as_view()),
-    path('api/plan/ProjectInfo',userPlan.ProjectInfo.as_view()),
-    path('api/file/uploadFile',file.uploadFile.as_view()),
-    path('api/file/downloadFile',file.downloadFile.as_view()),
-    path('api/file/watchFiles',file.watchFiles.as_view()),
+    path('api/plan/ProjectInfo', userPlan.ProjectInfo.as_view()),
+    path('api/file/uploadFile', file.uploadFile.as_view()),
+    path('api/file/downloadFile', file.downloadFile.as_view()),
+    path('api/file/watchFiles', file.watchFiles.as_view()),
     path('api/mailTest', mail.MailTest.as_view()),
 ]
