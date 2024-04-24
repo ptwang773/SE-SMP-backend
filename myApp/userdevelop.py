@@ -747,9 +747,10 @@ class GitPr(View):
                 return JsonResponse(genResponseStateInfo(response, 5, "wrong token with this user"))
         except Exception as e:
             return genUnexpectedlyErrorInfo(response, e)
+        return JsonResponse(response)
 
 
-class GitBranch(View):
+class GitBranchCommit(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
         response = {'message': "404 not success", "errcode": -1}
@@ -757,50 +758,75 @@ class GitBranch(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-        response = {}
-        genResponseStateInfo(response, 0, "git pr ok")
+        genResponseStateInfo(response, 0, "git commit ok")
 
         userId = kwargs.get('userId')
         projectId = kwargs.get('projectId')
         repoId = kwargs.get('repoId')
-        token = kwargs.get('token')
+
+        files = kwargs.get('files')
         branch = kwargs.get('branch')
+        message = kwargs.get('message')
 
         project = isProjectExists(projectId)
-        if project is None:
+        if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject is None:
+        if userProject == None:
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
         repo = Repo.objects.get(id=repoId)
+
+        user = User.objects.get(id=userId)
+        token = user.token
+
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
         try:
-            localPath = Repo.objects.get(id=repoId).local_path
-            remotePath = Repo.objects.get(id=repoId).remote_path
+            localPath = repo.local_path
+            remotePath = repo.remote_path
             getSemaphore(repoId)
-
             if validate_token(token):
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-                subprocess.run(["git", "branch", branch], cwd=localPath)
-                subprocess.run(["git", "checkout", branch], cwd=localPath)
-                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_branchOutput.log")
+                result = subprocess.run(["git", "checkout", "-b", branch], cwd=localPath, stderr=subprocess.PIPE,
+                                        text=True)
+                if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+                    response["message"] = result.stderr
+                    response["errcode"] = 7
+                    return JsonResponse(response)
+                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
+                print(log_path)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
+                for file in files:
+                    path = os.path.join(localPath, file.get('path'))
+                    content = file.get('content')
+                    try:
+                        with open(path, 'w') as f:
+                            f.write(content)
+                    except Exception as e:
+                        print(f"Failed to overwrite file {path}: {e}")
+                    subprocess.run(["git", "add", path], cwd=localPath)
+                subprocess.run(["git", "commit", "-m", message], cwd=localPath)
+
                 result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
                                         text=True)
                 print("out is ", result.stdout)
                 print("err is ", result.stderr)
-                if result.stderr is not None:
-                    subprocess.run(["git", "checkout", "master"], cwd=localPath)
-                    # TODO:主分支是master??
-                    subprocess.run(["git", "branch", "-d", branch], cwd=localPath)
+                if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+                    subprocess.run(["git", "branch", "-D", branch], cwd=localPath)
                     response["message"] = result.stderr
                     errcode = 7
                 else:
+                    result = subprocess.run(["git", "log", "-1", "--pretty=format:%H"], cwd=localPath,
+                                            capture_output=True, text=True)
+                    current_commit_sha = result.stdout.strip()
+                    print(current_commit_sha)
+                    Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
+                                          committer_id=user,
+                                          review_status=None)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -811,4 +837,5 @@ class GitBranch(View):
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
-                return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+        return JsonResponse(response)
