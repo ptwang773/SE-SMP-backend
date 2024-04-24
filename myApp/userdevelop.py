@@ -839,3 +839,95 @@ class GitBranchCommit(View):
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
+
+
+def isProjectReviewer(projectId):
+    users = UserProject.objects.filter(projectId=projectId)
+    for user in users:
+        tmp = UserProject.objects.get(projectId=projectId, userId=user.id)
+        if tmp.role == UserProject.REVIEWER:
+            return True
+    return False
+
+
+def getCommitComment(commitId):
+    comments = []
+    commitComments = CommitComment.objects.filter(commit_id=commitId)
+    for commit in commitComments:
+        reviewer = User.objects.get(id=commit.reviewerId)
+        comments.append({"reviewerName": reviewer.name, "comment": commit.comment})
+    return comments
+
+
+class GetCommitDetails(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get commit ok")
+        sha = kwargs.get('sha')
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 6, "invalid token"))
+
+        getSemaphore(repoId)
+        owner = str.split(repo.remote_path, "/")[0]
+        repo = str.split(repo.remote_path, "/")[1]
+        command = [
+            "gh", "api",
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: 2022-11-28",
+            "-H", f"Authorization: token {token}",
+            f"/repos/{owner}/{repo}/commits/{sha}"
+        ]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            output = result.stdout
+            data = json.loads(output)
+            commit = {}
+
+            commit["sha"] = data["sha"]
+
+            if not Commit.objects.filter(sha=sha).exists():
+                tmp_commit = Commit.objects.create(repo_id=repo, sha=sha,
+                                                   committer_name=data["commit"]["committer"]["name"],
+                                                   review_status=None)
+            else:
+                tmp_commit = Commit.objects.filter(sha=sha)[0]
+            changes= []
+            for file in data["files"]:
+                changes.append({"filename":file["filename"],"status":file["status"],"patch":file["patch"]})
+            commit["files"] = changes
+            commit["committer_name"] = tmp_commit.committer_name
+            commit["comments"] = getCommitComment(tmp_commit.id)
+            commit["status"] = tmp_commit.review_status
+            response["commit"] = commit
+            releaseSemaphore(repoId)
+            return JsonResponse(response)
+        except subprocess.CalledProcessError as e:
+            print("命令执行失败:", e)
+            print("错误输出:", e.stderr)
+            response["message"] = e.stderr
+            response["errcode"] = -1
+            releaseSemaphore(repoId)
+            return JsonResponse(response)
