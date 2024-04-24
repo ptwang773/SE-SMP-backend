@@ -599,6 +599,7 @@ def validate_token(token):
         return True
     return False
 
+
 class GitCommit(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -652,7 +653,8 @@ class GitCommit(View):
                     subprocess.run(["git", "add", path], cwd=localPath)
                 subprocess.run(["git", "commit", "-m", message], cwd=localPath)
 
-                result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,  text=True)
+                result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
+                                        text=True)
                 print("out is ", result.stdout)
                 print("err is ", result.stderr)
                 if result.stderr is not None:
@@ -672,3 +674,131 @@ class GitCommit(View):
         except Exception as e:
             return genUnexpectedlyErrorInfo(response, e)
         return JsonResponse(response)
+
+
+class GitPr(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response = {}
+        genResponseStateInfo(response, 0, "git pr ok")
+
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        token = kwargs.get('token')
+        branch = kwargs.get('branch')
+        title = kwargs.get('title')
+        body = kwargs.get('body')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo == None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        try:
+            localPath = Repo.objects.get(id=repoId).local_path
+            remotePath = Repo.objects.get(id=repoId).remote_path
+            getSemaphore(repoId)
+            if validate_token(token):
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                subprocess.run(["git", "checkout", branch], cwd=localPath)
+                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_prOutput.log")
+                print(log_path)
+                result = subprocess.run(["export", "GITHUB_TOKEN=", token, "&&", "gh", "pr", "create", "--title", title,
+                                         "--body", body], cwd=localPath, stderr=subprocess.PIPE, text=True)
+
+                print("out is ", result.stdout)
+                print("err is ", result.stderr)
+                if result.stderr is not None:
+                    subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath)
+                    response["message"] = result.stderr
+                    errcode = 7
+                else:
+                    errcode = 0
+
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                response['errcode'] = errcode
+                releaseSemaphore(repoId)
+                os.system("rm -f " + log_path)
+            else:
+                return JsonResponse(genResponseStateInfo(response, 5, "wrong token with this user"))
+        except Exception as e:
+            return genUnexpectedlyErrorInfo(response, e)
+
+
+class GitBranch(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response = {}
+        genResponseStateInfo(response, 0, "git pr ok")
+
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        token = kwargs.get('token')
+        branch = kwargs.get('branch')
+
+        project = isProjectExists(projectId)
+        if project is None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject is None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo == None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        try:
+            localPath = Repo.objects.get(id=repoId).local_path
+            remotePath = Repo.objects.get(id=repoId).remote_path
+            getSemaphore(repoId)
+
+            if validate_token(token):
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                subprocess.run(["git", "branch", branch], cwd=localPath)
+                subprocess.run(["git", "checkout", branch], cwd=localPath)
+                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_branchOutput.log")
+                subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                               cwd=localPath)
+                result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
+                                        text=True)
+                print("out is ", result.stdout)
+                print("err is ", result.stderr)
+                if result.stderr is not None:
+                    subprocess.run(["git", "checkout", "master"], cwd=localPath)
+                    # TODO:主分支是master??
+                    subprocess.run(["git", "branch", "-d", branch], cwd=localPath)
+                    response["message"] = result.stderr
+                    errcode = 7
+                else:
+                    errcode = 0
+                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                response['errcode'] = errcode
+                releaseSemaphore(repoId)
+                os.system("rm -f " + log_path)
+            else:
+                return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
+        except Exception as e:
+                return genUnexpectedlyErrorInfo(response, e)
