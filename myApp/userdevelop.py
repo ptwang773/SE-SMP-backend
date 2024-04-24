@@ -638,6 +638,7 @@ class GitCommit(View):
             remotePath = repo.remote_path
             getSemaphore(repoId)
             if validate_token(token):
+                subprocess.run(['git','credential-cache','exit'],cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 subprocess.run(["git", "checkout", branch], cwd=localPath)
