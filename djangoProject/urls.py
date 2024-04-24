@@ -62,6 +62,8 @@ urlpatterns = [
     path('api/develop/getRepoAllFiles', userdevelop.GetRepoAllFiles.as_view()),
     path('api/develop/getRepoFile', userdevelop.GetRepoFile.as_view()),
     path('api/develop/gitCommit', userdevelop.GitCommit.as_view()),
+    path('api/develop/gitBranchCommit',userdevelop.GitBranchCommit.as_view()),
+
 
     path('api/register', userBasic.register),
     path('api/login', userBasic.login),
