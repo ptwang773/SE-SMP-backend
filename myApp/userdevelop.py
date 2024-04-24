@@ -648,6 +648,7 @@ class GitCommit(View):
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
                     content = file.get('content')
+                    print("$$$$$$$$$$ modify file ", path)
                     try:
                         with open(path, 'w') as f:
                             f.write(content)
