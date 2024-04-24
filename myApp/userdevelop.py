@@ -1,6 +1,7 @@
 import mimetypes
 import struct
 
+import subprocess
 import requests
 from django.http import JsonResponse, HttpResponse, FileResponse
 from django.core import serializers
@@ -11,7 +12,6 @@ import json
 import os
 import shutil
 import sys
-import subprocess
 import json5
 
 repo_semaphore = {}
@@ -116,7 +116,7 @@ class GetBindRepos(View):
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
 
         descLogName = str(getCounter()) + "_getRepoDesc.log"
-        print("*********",descLogName)
+        print("*********", descLogName)
         try:
             userProjectRepos = UserProjectRepo.objects.filter(project_id=projectId)
             for userProjectRepo in userProjectRepos:
@@ -591,4 +591,107 @@ class GetContent(View):
             return genUnexpectedlyErrorInfo(response, e)
         return JsonResponse(response)
 
+
+def validate_token(token):
+    headers = {'Authorization': 'token ' + token, 'Content-Type': 'application/json; charset=utf-8'}
+    response = requests.get('https://api.github.com/user', headers=headers)
+    if response.status_code == 200:
+        return True
+    return False
+
+
+def check_repo_access(token, remote_path):
+    headers = {'Authorization': 'token ' + token, 'Content-Type': 'application/json; charset=utf-8'}
+    owner = remote_path.split("/")[0]
+    repo = remote_path.split("/")[1]
+    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
+    if response.status_code == 200:
+        return True
+    elif response.status_code == 404:
+        return False
+    elif response.status_code == 401:
+        return False
+    else:
+        return False
+
+
+import subprocess
+import os
+
+class GitCommit(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response = {}
+        genResponseStateInfo(response, 0, "git commit ok")
+
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        token = kwargs.get('token')
+        files = kwargs.get('files')
+        branch = kwargs.get('branch')
+        message = kwargs.get('message')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo == None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        try:
+            localPath = repo.local_path
+            remotePath = repo.remote_path
+            getSemaphore(repoId)
+
+            if validate_token(token):
+                if check_repo_access(token, remotePath):
+                    subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                    subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                    subprocess.run(["git", "checkout", branch], cwd=localPath)
+                    log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
+                    print(log_path)
+                    with open(log_path, "a") as log_file:
+                        subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"], cwd=localPath)
+                        # subprocess.run(["git", "push"], cwd=localPath, stderr=log_file) # 这里有问题？怎么权限判断
+                        if os.path.getsize(log_path) == 0:
+                            for file in files:
+                                path = os.path.join(localPath, file.get('path'))
+                                content = file.get('content')
+                                try:
+                                    with open(path, 'w') as f:
+                                        f.write(content)
+                                except Exception as e:
+                                    print(f"Failed to overwrite file {path}: {e}")
+                                subprocess.run(["git", "add", path], cwd=localPath)
+                            subprocess.run(["git", "commit", "-m", message], cwd=localPath)
+                            subprocess.run(["git", "push", "tmp", branch], cwd=localPath)
+                            subprocess.run(["git", "pull"], cwd=localPath)
+                            errcode = 0
+                        else:
+                            with open(log_path) as f:
+                                response["message"] = f.read()
+                            errcode = 7
+                        subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+                        subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                        subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                        response['errcode'] = errcode
+                        releaseSemaphore(repoId)
+                    os.system("rm -f " + log_path)
+                else:
+                    return JsonResponse(genResponseStateInfo(response, 5, "Insufficient permissions in this github"))
+            else:
+                return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
+        except Exception as e:
+            return genUnexpectedlyErrorInfo(response, e)
+        return JsonResponse(response)
 
