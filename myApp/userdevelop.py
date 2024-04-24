@@ -726,13 +726,14 @@ class GitPr(View):
                 subprocess.run(["git", "checkout", branch], cwd=localPath)
                 log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_prOutput.log")
                 print(log_path)
-                result = subprocess.run(["export", "GITHUB_TOKEN=", token, "&&", "gh", "pr", "create", "--title", title,
-                                         "--body", body], cwd=localPath, stderr=subprocess.PIPE, text=True)
+                result = subprocess.run(["export", "GITHUB_TOKEN=", token, "&&",
+                                         "gh", "pr", "create", "--title", title,
+                                         "--body", body, "-H", branch], cwd=localPath, stderr=subprocess.PIPE,
+                                        text=True)
 
                 print("out is ", result.stdout)
                 print("err is ", result.stderr)
                 if result.stderr is not None:
-                    subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath)
                     response["message"] = result.stderr
                     errcode = 7
                 else:
@@ -914,9 +915,9 @@ class GetCommitDetails(View):
                                                    review_status=None)
             else:
                 tmp_commit = Commit.objects.filter(sha=sha)[0]
-            changes= []
+            changes = []
             for file in data["files"]:
-                changes.append({"filename":file["filename"],"status":file["status"],"patch":file["patch"]})
+                changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"]})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
             commit["comments"] = getCommitComment(tmp_commit.id)
