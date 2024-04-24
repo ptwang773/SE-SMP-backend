@@ -892,13 +892,13 @@ class GetCommitDetails(View):
 
         getSemaphore(repoId)
         owner = str.split(repo.remote_path, "/")[0]
-        repo = str.split(repo.remote_path, "/")[1]
+        repo_name = str.split(repo.remote_path, "/")[1]
         command = [
             "gh", "api",
             "-H", "Accept: application/vnd.github+json",
             "-H", "X-GitHub-Api-Version: 2022-11-28",
             "-H", f"Authorization: token {token}",
-            f"/repos/{owner}/{repo}/commits/{sha}"
+            f"/repos/{owner}/{repo_name}/commits/{sha}"
         ]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=True)
