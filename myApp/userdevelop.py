@@ -599,6 +599,7 @@ def validate_token(token):
         return True
     return False
 
+
 class GitCommit(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -607,13 +608,12 @@ class GitCommit(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-        response = {}
         genResponseStateInfo(response, 0, "git commit ok")
 
         userId = kwargs.get('userId')
         projectId = kwargs.get('projectId')
         repoId = kwargs.get('repoId')
-        token = kwargs.get('token')
+
         files = kwargs.get('files')
         branch = kwargs.get('branch')
         message = kwargs.get('message')
@@ -627,6 +627,10 @@ class GitCommit(View):
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
         repo = Repo.objects.get(id=repoId)
+
+        user = User.objects.get(id=userId)
+        token = user.token
+
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
         try:
@@ -652,14 +656,22 @@ class GitCommit(View):
                     subprocess.run(["git", "add", path], cwd=localPath)
                 subprocess.run(["git", "commit", "-m", message], cwd=localPath)
 
-                result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,  text=True)
+                result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
+                                        text=True)
                 print("out is ", result.stdout)
                 print("err is ", result.stderr)
-                if result.stderr is not None:
+                if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath)
                     response["message"] = result.stderr
                     errcode = 7
                 else:
+                    result = subprocess.run(["git", "log", "-1", "--pretty=format:%H"], cwd=localPath,
+                                            capture_output=True, text=True)
+                    current_commit_sha = result.stdout.strip()
+                    print(current_commit_sha)
+                    Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
+                                          committer_id=user,
+                                          review_status=None)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -670,5 +682,5 @@ class GitCommit(View):
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)

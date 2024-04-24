@@ -648,7 +648,7 @@ class modifyRole(View):
             return JsonResponse(response)
 
         role = kwargs.get("role", "")
-        if role not in [UserProject.ADMIN, UserProject.NORMAL, UserProject.DEVELOPER]:
+        if role not in [UserProject.ADMIN, UserProject.NORMAL, UserProject.DEVELOPER, UserProject.REVIEWER]:
             response['errcode'] = 1
             response['message'] = "role not exist"
             response['data'] = None

@@ -64,7 +64,7 @@ class Command(BaseCommand):
         for i in range(2, 11):
             user = User.objects.get(id=str(i))
             project = Project.objects.get(id=str(i))
-            userProjectlist.append(UserProject(user_id=user, project_id=project))
+            userProjectlist.append(UserProject(user_id=user, project_id=project, role=UserProject.DEVELOPER))
         UserProject.objects.bulk_create(userProjectlist)
 
         UserProject(user_id=User.objects.get(id=2), project_id=Project.objects.get(id=3),

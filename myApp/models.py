@@ -319,7 +319,7 @@ class Commit(models.Model):
         (Y, 'Y'),
         (N, 'N'),
     )
-    review_status = models.CharField(max_length=3, choices=YON, default=None)
+    review_status = models.CharField(max_length=3, choices=YON, default=None,null=True)
 
 
 class CommitComment(models.Model):
