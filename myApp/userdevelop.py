@@ -401,6 +401,15 @@ class GetCommitHistory(View):
                 ghInfo = json5.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
             except Exception as e:
                 DBG("in GetCommitHistory has excp : " + str(e))
+            for info in ghInfo:
+                sha = info["commithash"]
+                print(sha)
+                if not Commit.objects.filter(sha=sha).exists():
+                    tmp_commit = Commit.objects.create(repo_id=Repo.objects.get(id=repoId), sha=sha,
+                                                       committer_name=info["author"])
+                else:
+                    tmp_commit = Commit.objects.filter(sha=sha)[0]
+                info["status"] = 1 if tmp_commit.review_status == Commit.Y else (0 if tmp_commit.review_status == Commit.N else None)
             response["data"] = ghInfo
             os.system("rm -f " + os.path.join(USER_REPOS_DIR, log))
         except Exception as e:
