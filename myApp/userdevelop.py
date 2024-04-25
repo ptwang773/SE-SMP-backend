@@ -272,7 +272,6 @@ class UserBindRepo(View):
             userProjectRepoEntry.save()
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
-
         return JsonResponse(response)
 
 
@@ -710,14 +709,15 @@ class GitPr(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        user = User.objects.get(id=userId)
+        if userProject == None or user is None:
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
         repo = Repo.objects.get(id=repoId)
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
-        token = User.objects.get(user_id=userId)
+        token = user.token
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             remotePath = Repo.objects.get(id=repoId).remote_path
@@ -1074,7 +1074,8 @@ class ResolvePr(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        user = User.objects.get(user_id=userId)
+        if userProject is None or user is None:
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
@@ -1083,9 +1084,11 @@ class ResolvePr(View):
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
         if not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
-        token = User.objects.get(id=userId).token
+        token = user.token
         if token is None or validate_token(token) == False:
             return JsonResponse(genResponseStateInfo(response, 6, "invalid token"))
+        if not isProjectReviewer(userId, projectId):
+            return JsonResponse(genResponseStateInfo(response, 7, "Insufficient authority"))
 
         getSemaphore(repoId)
         owner = str.split(repo.remote_path, "/")[0]
