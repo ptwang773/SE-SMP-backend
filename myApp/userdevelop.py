@@ -883,12 +883,15 @@ def isProjectReviewer(userId, projectId):
         return True
 
 
-def getCommitComment(commitId):
+def getCommitComment(commitId,projectId):
     comments = []
     commitComments = CommitComment.objects.filter(commit_id=commitId)
     for commit in commitComments:
         reviewer = User.objects.get(id=commit.reviewer_id_id)
-        comments.append({"reviewerName": reviewer.name, "comment": commit.comment})
+        if UserProject.objects.filter(project_id=projectId, user_id=reviewer.id).exists():
+            role = UserProject.objects.get(project_id=projectId, user_id=reviewer.id).role
+        else: role = None
+        comments.append({"commenterName": reviewer.name, "comment": commit.comment,"commenterId":reviewer.id,"commenterRole":role})
     return comments
 
 
@@ -951,8 +954,9 @@ class GetCommitDetails(View):
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"]})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
-            commit["comments"] = getCommitComment(tmp_commit.id)
+            commit["comments"] = getCommitComment(tmp_commit.id,projectId)
             commit["status"] = tmp_commit.review_status
+            commit["reviewerName"] = tmp_commit.reviewer_id.name if tmp_commit.reviewer_id is not None else None
             response["commit"] = commit
             releaseSemaphore(repoId)
             return JsonResponse(response)
@@ -1006,6 +1010,7 @@ class ModifyCommitStatus(View):
             return JsonResponse(genResponseStateInfo(response, 9, "can not approve/reject twice"))
         if status == 0 or status == 1:
             tmp_commit.review_status = Commit.Y if status == 1 else Commit.N
+            tmp_commit.reviewer_id = User.objects.get(id=userId)
             tmp_commit.save()
         else:
             return JsonResponse(

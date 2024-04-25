@@ -253,7 +253,7 @@ class UserProject(models.Model):
         (NORMAL, 'NORMAL'),
         (ADMIN, 'ADMIN'),
         (DEVELOPER, 'DEVELOPER'),
-        (REVIEWER,'REVIEWER'),
+        (REVIEWER, 'REVIEWER'),
     )
 
     role = models.CharField(max_length=3, choices=ROLE_LIST)
@@ -319,7 +319,8 @@ class Commit(models.Model):
         (Y, 'Y'),
         (N, 'N'),
     )
-    review_status = models.CharField(max_length=3, choices=YON, default=None,null=True)
+    review_status = models.CharField(max_length=3, choices=YON, default=None, null=True)
+    reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None, related_name='reviewer_commits')
 
 
 class CommitComment(models.Model):
