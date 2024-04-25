@@ -879,7 +879,7 @@ def getCommitComment(commitId):
     comments = []
     commitComments = CommitComment.objects.filter(commit_id=commitId)
     for commit in commitComments:
-        reviewer = User.objects.get(id=commit.reviewerId)
+        reviewer = User.objects.get(id=commit.reviewer_id)
         comments.append({"reviewerName": reviewer.name, "comment": commit.comment})
     return comments
 
