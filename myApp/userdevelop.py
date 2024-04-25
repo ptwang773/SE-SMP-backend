@@ -409,7 +409,7 @@ class GetCommitHistory(View):
                                                        committer_name=info["author"])
                 else:
                     tmp_commit = Commit.objects.filter(sha=sha)[0]
-                info["status"] = 1 if tmp_commit.review_status == Commit.Y else (0 if tmp_commit.review_status == Commit.N else None)
+                info["status"] = tmp_commit.review_status
             response["data"] = ghInfo
             os.system("rm -f " + os.path.join(USER_REPOS_DIR, log))
         except Exception as e:
