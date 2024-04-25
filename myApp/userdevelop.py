@@ -713,20 +713,20 @@ class GitPr(View):
         branch = kwargs.get('branch')
         title = kwargs.get('title')
         body = kwargs.get('body')
+        base = kwargs.get('base')
 
         project = isProjectExists(projectId)
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        user = User.objects.get(id=userId)
-        if userProject == None or user is None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
         repo = Repo.objects.get(id=repoId)
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
-        token = user.token
+        token = User.objects.get(id=userId).token
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             remotePath = Repo.objects.get(id=repoId).remote_path
@@ -747,7 +747,7 @@ class GitPr(View):
                     "-f", f"title={title}",
                     "-f", f"body={body}",
                     "-f", f"head={branch}",
-                    "-f", "base=master"
+                    "-f", f"base={base}"
                 ]
 
                 result = subprocess.run(command, cwd=localPath, stderr=subprocess.PIPE,
@@ -763,7 +763,7 @@ class GitPr(View):
                 releaseSemaphore(repoId)
                 os.system("rm -f " + log_path)
             else:
-                return JsonResponse(genResponseStateInfo(response, 5, "wrong token with this user"))
+                return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
             return genUnexpectedlyErrorInfo(response, e)
         return JsonResponse(response)
@@ -1125,12 +1125,81 @@ class ResolvePr(View):
             result = subprocess.run(command, capture_output=True, text=True, check=True)
             print("out is ", result.stdout)
             print("err is ", result.stderr)
-            if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+            if "conflict" in result.stderr:
                 response["message"] = result.stderr
-                errcode = 7
+                errcode = 8
+            elif "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+                response["message"] = result.stderr
+                errcode = 9
             else:
                 errcode = 0
             response['errcode'] = errcode
+            releaseSemaphore(repoId)
+            return JsonResponse(response)
+        except subprocess.CalledProcessError as e:
+            print("命令执行失败:", e)
+            print("错误输出:", e.stderr)
+            response["message"] = e.stderr
+            response["errcode"] = -1
+            releaseSemaphore(repoId)
+            return JsonResponse(response)
+
+
+class GetPrDetails(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get commit ok")
+        prId = kwargs.get('prId')
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 6, "invalid token"))
+
+        getSemaphore(repoId)
+        owner = str.split(repo.remote_path, "/")[0]
+        repo_name = str.split(repo.remote_path, "/")[1]
+        command = [
+            "gh", "api",
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: 2022-11-28",
+            "-H", f"Authorization: token {token}",
+            f"/repos/{owner}/{repo_name}/pulls/{prId}"
+        ]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            output = result.stdout
+            jsonOutput = json.loads(output)
+
+            data = {
+                "state": jsonOutput["state"],
+                "title": jsonOutput["title"],
+                "body": jsonOutput["body"],
+                "merge_commit_sha": jsonOutput["merge_commit_sha"],
+                "branch": jsonOutput["head"]["ref"],
+                "base": jsonOutput["base"]["ref"]
+            }
+            response["data"] = data
             releaseSemaphore(repoId)
             return JsonResponse(response)
         except subprocess.CalledProcessError as e:

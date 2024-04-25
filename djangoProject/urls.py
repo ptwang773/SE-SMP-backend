@@ -69,6 +69,7 @@ urlpatterns = [
     path('api/develop/commentCommit', userdevelop.CommentCommit.as_view()),
     path('api/develop/gitPr', userdevelop.GitPr.as_view()),
     path('api/develop/resolvePr', userdevelop.ResolvePr.as_view()),
+    path('api/develop/getPrDetails', userdevelop.GetPrDetails.as_view()),
 
     path('api/register', userBasic.register),
     path('api/login', userBasic.login),
