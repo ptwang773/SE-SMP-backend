@@ -359,6 +359,13 @@ class Pr_Comment(models.Model):
     commenter_id = models.ForeignKey(User, on_delete=models.CASCADE)
     comment = models.CharField(max_length=255)
 
+
+class Cooperate(models.Model):
+    user1_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user2_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    relation = models.IntegerField(default=0)
+
 # TODO : add enum check in function
 
 class FileUserCommit(models.Model):

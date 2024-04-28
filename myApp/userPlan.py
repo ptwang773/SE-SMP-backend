@@ -711,6 +711,9 @@ class addMember(View):
             return JsonResponse(response)
 
         UserProject.objects.create(user_id_id=peopleId, project_id_id=projectId, role=UserProject.NORMAL)
+        personList = UserProject.objects.filter(project_id_id=projectId)
+        for person in personList:
+            Cooperate.objects.create(user1_id_id=person.user_id.id, user2_id_id=peopleId, project_id_id=projectId)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = None
@@ -758,6 +761,7 @@ class removeMember(View):
         # for i in a:
         #     ids.append(i.user_id)
         delete_user_from_groups(user_id=int(peopleId), project_id=int(projectId))
+        Cooperate.objects.filter(Q(user1_id=peopleId) | Q(user2_id=peopleId), project_id=projectId).delete()
 
         UserProject.objects.filter(user_id_id=peopleId, project_id_id=projectId).delete()
         response['errcode'] = 0
@@ -1204,4 +1208,32 @@ class changeUserProjectAuths(View):
         data["username"] = User.objects.get(id=userId).name
 
         response["data"] = data
+        return JsonResponse(response)
+
+
+class showCooperate(View):
+    def post(self, request):
+        response = {'errcode': 0, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response['message'] = "this is the cooperate relation"
+        projectId = kwargs.get("projectId", -1)
+        if Project.objects.filter(id=projectId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "project not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        data = []
+        pairs = Cooperate.objects.filter(project_id=projectId)
+        for pair in pairs:
+            data.append({
+                "cooperateUser1_id": pair.user1_id,
+                "cooperateUser1_name": User.objects.get(id=pair.user1_id).name,
+                "cooperateUser2_id": pair.user2_id,
+                "cooperateUser2_name": User.objects.get(id=pair.user2_id).name,
+                "cooperateRelation": pair.relation
+            })
+        response['data'] = data
         return JsonResponse(response)

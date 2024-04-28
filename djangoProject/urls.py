@@ -111,6 +111,7 @@ urlpatterns = [
     path('api/plan/reviewTask', userPlan.reviewTask.as_view()),
     path('api/plan/getUserProjectAuths', userPlan.getUserProjectAuths.as_view()),
     path('api/plan/changeUserProjectAuths', userPlan.changeUserProjectAuths.as_view()),
+    path('api/plan/showCooperate', userPlan.showCooperate.as_view),
 
     path('api/echo', debug.echo),
     path('api/notice/userPostNoticeToAll', notice.UserPostNoticeToAll.as_view()),
