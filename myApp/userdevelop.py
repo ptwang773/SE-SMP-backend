@@ -696,9 +696,9 @@ class GitCommit(View):
                                           committer_id=user,
                                           review_status=None)
                     for file in files:
-                        FileUserCommit.objects.create(user_id=User.objects.get(id=userId),
-                                                      repo_id=Repo.objects.get(id=repoId),
-                                                      branch=branch, file=file[0], commit_sha=current_commit_sha)
+                        FileUserCommit.objects.create(user_id=user,
+                                                      repo_id=repo,
+                                                      branch=branch, file=file['path'].split('/')[-1], commit_sha=current_commit_sha)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)

@@ -361,7 +361,7 @@ class Pr_Comment(models.Model):
 
 
 class Cooperate(models.Model):
-    user1_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    user1_id = models.ForeignKey(User, on_delete=models.CASCADE,related_name="user1_cooperate")
     user2_id = models.ForeignKey(User, on_delete=models.CASCADE)
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField(default=0)
