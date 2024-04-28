@@ -73,6 +73,7 @@ urlpatterns = [
     path('api/develop/associatePrTask',userdevelop.AssociatePrTask.as_view()),
     path('api/develop/showCanAssociateTasks',userdevelop.ShowCanAssociateTasks.as_view()),
 
+    path('api/develop/getFileCommits', userdevelop.GetFileCommits.as_view()),
 
     path('api/register', userBasic.register),
     path('api/login', userBasic.login),

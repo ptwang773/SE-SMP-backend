@@ -358,4 +358,12 @@ class Pr_Comment(models.Model):
     pr_id = models.ForeignKey(Pr, on_delete=models.CASCADE)
     commenter_id = models.ForeignKey(User, on_delete=models.CASCADE)
     comment = models.CharField(max_length=255)
+
 # TODO : add enum check in function
+
+class FileUserCommit(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    repo_id = models.ForeignKey(Repo, on_delete=models.CASCADE)
+    branch = models.CharField(max_length=255)
+    file = models.CharField(max_length=255)
+    commit_sha = models.CharField(max_length=255)

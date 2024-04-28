@@ -233,9 +233,13 @@ class UserBindRepo(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        user = User.objects.get(id=userId)
+        token = user.token
         # check if repo exists
+        if token is None or not validate_token(token):
+            return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         try:
             localHasRepo = False
             s = Repo.objects.filter(remote_path=repoRemotePath)
@@ -253,9 +257,14 @@ class UserBindRepo(View):
             if localHasRepo == False:
                 # if dir not exists, then clone
                 if not os.path.exists(localPath):
-                    r = os.system("gh repo clone " + repoRemotePath + " " + localPath)
-                    if r != 0:
-                        return JsonResponse(genResponseStateInfo(response, 5, "clone repo fail"))
+                    subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
+                    subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                    subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                    result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
+                                             f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
+                    if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+                        response["message"] = result.stderr
+                        return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
             # insert Repo
             repo = None
             s = Repo.objects.filter(remote_path=repoRemotePath)
@@ -270,6 +279,9 @@ class UserBindRepo(View):
             project = Project.objects.get(id=projectId)
             userProjectRepoEntry = UserProjectRepo(user_id=user, project_id=project, repo_id=repo)
             userProjectRepoEntry.save()
+
+            subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+            subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -683,6 +695,10 @@ class GitCommit(View):
                     Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
                                           committer_id=user,
                                           review_status=None)
+                    for file in files:
+                        FileUserCommit.objects.create(user_id=User.objects.get(id=userId),
+                                                      repo_id=Repo.objects.get(id=repoId),
+                                                      branch=branch, file=file[0], commit_sha=current_commit_sha)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -853,6 +869,10 @@ class GitBranchCommit(View):
                     Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
                                           committer_id=user,
                                           review_status=None)
+                    for file in files:
+                        FileUserCommit.objects.create(user_id=User.objects.get(id=userId),
+                                                      repo_id=Repo.objects.get(id=repoId),
+                                                      branch=branch, file=file[0], commit_sha=current_commit_sha)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -1333,3 +1353,46 @@ class GetPrDetails(View):
             response["errcode"] = -1
             releaseSemaphore(repoId)
             return JsonResponse(response)
+
+
+class GetFileCommits(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get user commits for file ok")
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        file = kwargs.get('file')
+        branch = kwargs.get('branch')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+
+        getSemaphore(repoId)
+        fileUserCommits = FileUserCommit.objects.filter(repo_id=repoId, file=file, branch=branch)
+        commits = {}
+        for fuc in fileUserCommits:
+            if not (fuc.user_id in commits):
+                commits[fuc.user_id] = []
+            commits[fuc.user_id].append(fuc.commit_sha)
+        data = []
+        for key in commits.keys():
+            data.append({"userId": key, "commits": commits[key]})
+        response["data"] = data
+        return JsonResponse(response)
