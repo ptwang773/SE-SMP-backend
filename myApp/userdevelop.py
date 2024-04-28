@@ -257,11 +257,15 @@ class UserBindRepo(View):
             if localHasRepo == False:
                 # if dir not exists, then clone
                 if not os.path.exists(localPath):
+                    os.makedirs(localPath)
                     subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
                     subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                     subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                    print(f"https://{token}@github.com/{repoRemotePath}.git")
                     result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
                                              f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
+                    print("out is ",result.stdout)
+                    print("err is ",result.stderr)
                     if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                         response["message"] = result.stderr
                         return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
