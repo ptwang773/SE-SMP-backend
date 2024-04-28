@@ -1,6 +1,6 @@
 import mimetypes
 import struct
-
+import datetime
 import subprocess
 import requests
 from django.http import JsonResponse, HttpResponse, FileResponse
@@ -358,7 +358,7 @@ class GetRepoBranches(View):
             # os.system("rm -f " + os.path.join(USER_REPOS_DIR, log))
             # os.system("rm -f " + os.path.join(USER_REPOS_DIR, commitLog))
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
@@ -413,7 +413,7 @@ class GetCommitHistory(View):
             response["data"] = ghInfo
             os.system("rm -f " + os.path.join(USER_REPOS_DIR, log))
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
@@ -457,7 +457,7 @@ class GetIssueList(View):
                              "ghLink": it["html_url"]})
             response["data"] = data
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
@@ -501,7 +501,7 @@ class GetPrList(View):
                              "toBranchName": it["base"]["ref"]})
             response["data"] = data
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
@@ -552,7 +552,7 @@ class GetFileTree(View):
             response["data"] = data
             releaseSemaphore(repoId)
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
@@ -596,14 +596,14 @@ class GetContent(View):
             response["data"] = data
             releaseSemaphore(repoId)
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
 def validate_token(token):
     headers = {'Authorization': 'token ' + token, 'Content-Type': 'application/json; charset=utf-8'}
     response = requests.get('https://api.github.com/user', headers=headers)
-    print(token  ,response.status_code)
+    print(token, response.status_code)
     if response.status_code == 200:
         return True
     return False
@@ -727,7 +727,8 @@ class GitPr(View):
         repo = Repo.objects.get(id=repoId)
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
-        token = User.objects.get(id=userId).token
+        applicant = User.objects.get(id=userId)
+        token = applicant.token
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             remotePath = Repo.objects.get(id=repoId).remote_path
@@ -737,7 +738,6 @@ class GitPr(View):
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_prOutput.log")
-                print(log_path)
 
                 command = [
                     "gh", "api",
@@ -751,13 +751,17 @@ class GitPr(View):
                     "-f", f"base={base}"
                 ]
 
-                result = subprocess.run(command, cwd=localPath, stderr=subprocess.PIPE,
-                                        text=True)
-                print(result.stderr)
+                result = subprocess.run(command, cwd=localPath, capture_output=True, text=True)
                 if "Failed" in result.stderr or "422" in result.stderr or "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
-                    response["message"] = result.stderr
+                    print(result.stdout)
+                    print(result.stderr)
+                    response["message"] = json.loads(result.stdout)["errors"][0]["message"]
                     response["errcode"] = 7
                     return JsonResponse(response)
+                output = json.loads(result.stdout)
+                print("------- pr number:", output["number"])
+                Pr.objects.create(applicant_id=applicant, repo_id=repo, src_branch=branch, dst_branch=base,
+                                  pr_number=output["number"], applicant_name=applicant.name, pr_status=Pr.OPEN)
 
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
@@ -767,7 +771,7 @@ class GitPr(View):
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
-            return genUnexpectedlyErrorInfo(response, e)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
 
@@ -894,15 +898,17 @@ def isProjectReviewer(userId, projectId):
         return True
 
 
-def getCommitComment(commitId,projectId):
+def getCommitComment(commitId, projectId):
     comments = []
     commitComments = CommitComment.objects.filter(commit_id=commitId)
     for commit in commitComments:
         reviewer = User.objects.get(id=commit.reviewer_id_id)
         if UserProject.objects.filter(project_id=projectId, user_id=reviewer.id).exists():
             role = UserProject.objects.get(project_id=projectId, user_id=reviewer.id).role
-        else: role = None
-        comments.append({"commenterName": reviewer.name, "comment": commit.comment,"commenterId":reviewer.id,"commenterRole":role})
+        else:
+            role = None
+        comments.append({"commenterName": reviewer.name, "comment": commit.comment, "commenterId": reviewer.id,
+                         "commenterRole": role})
     return comments
 
 
@@ -965,7 +971,7 @@ class GetCommitDetails(View):
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"]})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
-            commit["comments"] = getCommitComment(tmp_commit.id,projectId)
+            commit["comments"] = getCommitComment(tmp_commit.id, projectId)
             commit["status"] = tmp_commit.review_status
             commit["reviewerName"] = tmp_commit.reviewer_id.name if tmp_commit.reviewer_id is not None else None
             response["commit"] = commit
@@ -1071,6 +1077,74 @@ class CommentCommit(View):
         CommitComment.objects.create(commit_id=tmp_commit, reviewer_id=reviewer, comment=comment)
         return JsonResponse(response)
 
+class ShowCanAssociateTasks(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "show associate tasks ok")
+        projectId = kwargs.get('projectId')
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        tasks = Task.objects.filter(project_id=project)
+        data = []
+        for task in tasks:
+            if task.status == Task.COMPLETED:
+                continue
+            data.append({"taskName":task.name,"taskId":task.id})
+        response["data"] = data
+        return JsonResponse(response)
+
+class AssociatePrTask(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "associate pr with task ok")
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        prId = kwargs.get('prId')
+        taskId = kwargs.get('taskId')
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        user = User.objects.get(id=userId)
+        if userProject is None or user is None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+
+        if Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
+            pr = Pr.objects.get(pr_number=prId, repo_id=repo)
+        else:
+            return JsonResponse(genResponseStateInfo(response, 6, "no sucn pr in repo"))
+
+        if pr.applicant_id != user and pr.applicant_id is not None:
+            return JsonResponse(genResponseStateInfo(response,9,"you can not associate"))
+
+        if not Task.objects.filter(id=taskId, project_id=project).exists():
+            return JsonResponse(genResponseStateInfo(response, 7, "no such task in project"))
+        task = Task.objects.get(id=taskId)
+        if task.status == Task.COMPLETED:
+            return JsonResponse(genResponseStateInfo(response, 8, "task is completed"))
+        Pr_Task.objects.create(pr_id=pr, task_id=task)
+
+        return JsonResponse(response)
+
 
 class ResolvePr(View):
     def post(self, request):
@@ -1142,6 +1216,47 @@ class ResolvePr(View):
                 errcode = 9
             else:
                 errcode = 0
+
+            if Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
+                pr = Pr.objects.get(pr_number=prId, repo_id=repo)
+                pr.status = Pr.MERGED if action == 1 else Pr.CLOSED
+            else:
+                command = [
+                    "gh", "api",
+                    "-H", "Accept: application/vnd.github+json",
+                    "-H", "X-GitHub-Api-Version: 2022-11-28",
+                    "-H", f"Authorization: token {token}",
+                    f"/repos/{owner}/{repo_name}/pulls/{prId}"
+                ]
+                output = subprocess.run(command, capture_output=True, text=True, check=True)
+                output = json.loads(output.stdout)
+                print("+++++++++++\n", output)
+                pr = Pr.objects.create(repo_id=repo, src_branch=output["head"]["label"].split(':')[1],
+                                       dst_branch=output["base"]["label"].split(':')[1],
+                                       pr_number=output["number"], applicant_name=output["user"]["login"],
+                                       pr_status=Pr.MERGED if action == 1 else Pr.CLOSED)
+            pr.reviewer_id = user
+            pr.save()
+
+            if action == 1:
+                pr_tasks = Pr_Task.objects.filter(pr_id=pr)
+                tasks = [pr_task.task_id for pr_task in pr_tasks]
+                for task in tasks:
+                    if task.status == Task.COMPLETED:
+                        continue
+                    task.status = Task.COMPLETED
+                    task.complete_time = datetime.datetime.now()
+                    print(task.id, " is completed with pr")
+                    task.save()
+                    subtasks = Task.objects.filter(parent_id=task.id)
+                    for i in subtasks:
+                        if i.status == Task.COMPLETED:
+                            continue
+                        i.status = Task.COMPLETED
+                        i.complete_time = datetime.datetime.now()
+                        print(i.id, " is completed with pr")
+                        i.save()
+
             response['errcode'] = errcode
             releaseSemaphore(repoId)
             return JsonResponse(response)

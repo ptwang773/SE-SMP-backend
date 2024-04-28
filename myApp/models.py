@@ -1,7 +1,4 @@
 from django.db import models
-import datetime
-
-from openai.types.beta import Assistant
 
 
 class User(models.Model):
@@ -22,9 +19,9 @@ class User(models.Model):
     ASSISTANT = 2
     TEACHER = 3
     AUTH_LIST = (
-        (STUDENT, 'STUDENT')
-        , (ASSISTANT, 'ASSISTANT')
-        , (TEACHER, 'TEACHER')
+        (STUDENT, 'STUDENT'),
+        (ASSISTANT, 'ASSISTANT'),
+        (TEACHER, 'TEACHER')
     )
     auth = models.IntegerField(choices=AUTH_LIST, default=STUDENT)
 
@@ -320,7 +317,8 @@ class Commit(models.Model):
         (N, 'N'),
     )
     review_status = models.CharField(max_length=3, choices=YON, default=None, null=True)
-    reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None, related_name='reviewer_commits')
+    reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None,
+                                    related_name='reviewer_commits')
 
 
 class CommitComment(models.Model):
@@ -328,4 +326,36 @@ class CommitComment(models.Model):
     reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE)
     comment = models.CharField(max_length=255)
 
+
+class Pr(models.Model):
+    id = models.AutoField(primary_key=True)
+    applicant_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None)
+    applicant_name = models.CharField(max_length=255,null=True, default=None)
+    repo_id = models.ForeignKey(Repo, on_delete=models.CASCADE)
+    reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None, related_name='pr_reviewer')
+    src_branch = models.CharField(max_length=255)
+    dst_branch = models.CharField(max_length=255)
+    pr_number = models.IntegerField(default=0)
+    OPEN = 1
+    CLOSED = 2
+    MERGED = 3
+    DRAFT = 4
+    PR_STATUS_LIST = {
+        (OPEN,1),
+        (CLOSED,2),
+        (MERGED, 3),
+        (DRAFT,4)
+    }
+    pr_status = models.IntegerField(choices=PR_STATUS_LIST, default=None, null=True)
+
+
+class Pr_Task(models.Model):
+    pr_id = models.ForeignKey(Pr, on_delete=models.CASCADE)
+    task_id = models.ForeignKey(Task, on_delete=models.CASCADE)
+
+
+class Pr_Comment(models.Model):
+    pr_id = models.ForeignKey(Pr, on_delete=models.CASCADE)
+    commenter_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.CharField(max_length=255)
 # TODO : add enum check in function
