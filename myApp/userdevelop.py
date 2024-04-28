@@ -233,9 +233,13 @@ class UserBindRepo(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        user = User.objects.get(id=userId)
+        token = user.token
         # check if repo exists
+        if not validate_token(token):
+            return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         try:
             localHasRepo = False
             s = Repo.objects.filter(remote_path=repoRemotePath)
@@ -253,9 +257,14 @@ class UserBindRepo(View):
             if localHasRepo == False:
                 # if dir not exists, then clone
                 if not os.path.exists(localPath):
-                    r = os.system("gh repo clone " + repoRemotePath + " " + localPath)
-                    if r != 0:
-                        return JsonResponse(genResponseStateInfo(response, 5, "clone repo fail"))
+                    subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
+                    subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                    subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                    result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
+                                             f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
+                    if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+                        response["message"] = result.stderr
+                        return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
             # insert Repo
             repo = None
             s = Repo.objects.filter(remote_path=repoRemotePath)
@@ -270,6 +279,9 @@ class UserBindRepo(View):
             project = Project.objects.get(id=projectId)
             userProjectRepoEntry = UserProjectRepo(user_id=user, project_id=project, repo_id=repo)
             userProjectRepoEntry.save()
+
+            subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+            subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -303,7 +315,6 @@ class UserUnbindRepo(View):
             userProjectRepo.delete()
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
-
         return JsonResponse(response)
 
 
@@ -603,7 +614,6 @@ class GetContent(View):
 def validate_token(token):
     headers = {'Authorization': 'token ' + token, 'Content-Type': 'application/json; charset=utf-8'}
     response = requests.get('https://api.github.com/user', headers=headers)
-    print(token  ,response.status_code)
     if response.status_code == 200:
         return True
     return False
@@ -732,7 +742,7 @@ class GitPr(View):
             localPath = Repo.objects.get(id=repoId).local_path
             remotePath = Repo.objects.get(id=repoId).remote_path
             getSemaphore(repoId)
-            if token is not None or validate_token(token):
+            if token is None or not validate_token(token):
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
@@ -753,8 +763,7 @@ class GitPr(View):
 
                 result = subprocess.run(command, cwd=localPath, stderr=subprocess.PIPE,
                                         text=True)
-                print(result.stderr)
-                if "Failed" in result.stderr or "422" in result.stderr or "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
+                if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     response["message"] = result.stderr
                     response["errcode"] = 7
                     return JsonResponse(response)
@@ -894,7 +903,7 @@ def isProjectReviewer(userId, projectId):
         return True
 
 
-def getCommitComment(commitId,projectId):
+def getCommitComment(commitId, projectId):
     comments = []
     commitComments = CommitComment.objects.filter(commit_id=commitId)
     for commit in commitComments:
@@ -965,7 +974,7 @@ class GetCommitDetails(View):
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"]})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
-            commit["comments"] = getCommitComment(tmp_commit.id,projectId)
+            commit["comments"] = getCommitComment(tmp_commit.id, projectId)
             commit["status"] = tmp_commit.review_status
             commit["reviewerName"] = tmp_commit.reviewer_id.name if tmp_commit.reviewer_id is not None else None
             response["commit"] = commit
@@ -1090,7 +1099,7 @@ class ResolvePr(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        user = User.objects.get(id=userId)
+        user = User.objects.get(user_id=userId)
         if userProject is None or user is None:
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
@@ -1117,7 +1126,6 @@ class ResolvePr(View):
                     "--method", "PATCH",
                     "-H", "Accept: application/vnd.github+json",
                     "-H", "X-GitHub-Api-Version: 2022-11-28",
-                    "-H", f"Authorization: token {token}",
                     f"/repos/{owner}/{repo_name}/pulls/{prId}",
                     "-f", "state=closed"
                 ]
@@ -1127,7 +1135,6 @@ class ResolvePr(View):
                     "--method", "PUT",
                     "-H", "Accept: application/vnd.github+json",
                     "-H", "X-GitHub-Api-Version: 2022-11-28",
-                    "-H", f"Authorization: token {token}",
                     f"/repos/{owner}/{repo_name}/pulls/{prId}/merge"
                 ]
 
