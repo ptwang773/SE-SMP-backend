@@ -411,7 +411,9 @@ class GetCommitHistory(View):
             cmd = "cd " + localPath + " && bash " + os.path.join(BASE_DIR,
                                                                  "myApp/get_commits.sh") + " > " + os.path.join(
                 USER_REPOS_DIR, log)
-            os.system(cmd)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            print("out is ", result.stdout)
+            print("err is ", result.stderr)
             releaseSemaphore(repoId)
             try:
                 ghInfo = json5.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
