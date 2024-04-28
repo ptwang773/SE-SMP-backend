@@ -406,6 +406,8 @@ class GetCommitHistory(View):
         try:
             log = str(getCounter()) + "_getCommitHistory.log"
             localPath = Repo.objects.get(id=repoId).local_path
+            if not is_independent_git_repository(localPath):
+                return JsonResponse(genResponseStateInfo(response,4,"this is not git repository???"))
             getSemaphore(repoId)
             result_checkout = subprocess.run(["git", "checkout", branchName], cwd=localPath, capture_output=True,
                                              text=True)
@@ -413,7 +415,7 @@ class GetCommitHistory(View):
             cmd = "cd " + localPath + " && bash " + os.path.join(BASE_DIR,
                                                                  "myApp/get_commits.sh") + " > " + os.path.join(
                 USER_REPOS_DIR, log)
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=localPath)
             print("out is ", result.stdout)
             print("err is ", result.stderr)
             releaseSemaphore(repoId)
