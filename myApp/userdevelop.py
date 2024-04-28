@@ -264,8 +264,8 @@ class UserBindRepo(View):
                     print(f"https://{token}@github.com/{repoRemotePath}.git")
                     result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
                                              f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
-                    print("out is ",result.stdout)
-                    print("err is ",result.stderr)
+                    print("out is ", result.stdout)
+                    print("err is ", result.stderr)
                     if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                         response["message"] = result.stderr
                         return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
@@ -625,6 +625,14 @@ def validate_token(token):
     return False
 
 
+def is_independent_git_repository(path):
+    print(os.path.join(path, '.git'))
+    if os.path.exists(os.path.join(path, '.git')):
+        return True
+    else:
+        return False
+
+
 class GitCommit(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -661,6 +669,10 @@ class GitCommit(View):
         try:
             localPath = repo.local_path
             remotePath = repo.remote_path
+            print(localPath)
+            print("is git :", is_independent_git_repository(localPath))
+            if not is_independent_git_repository(localPath):
+                return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
             getSemaphore(repoId)
             if validate_token(token):
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
@@ -668,11 +680,14 @@ class GitCommit(View):
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 subprocess.run(["git", "checkout", branch], cwd=localPath)
                 log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
+
                 print(log_path)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
+                subprocess.run(['git', 'pull'], cwd=localPath)
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
+                    print(path)
                     content = file.get('content')
                     print("$$$$$$$$$$ modify file ", path)
                     try:
@@ -980,7 +995,14 @@ class GetCommitDetails(View):
         ]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=True)
+
+            tmp = subprocess.run(['git', 'pull'], stderr=subprocess.PIPE,
+                                 text=True)
+            if "fatal" in tmp.stderr:
+                return JsonResponse(genResponseStateInfo(response, 7, tmp.stderr))
+
             output = result.stdout
+            localPath = repo.local_path
             data = json.loads(output)
             commit = {}
 
@@ -993,7 +1015,12 @@ class GetCommitDetails(View):
                 tmp_commit = Commit.objects.filter(sha=sha)[0]
             changes = []
             for file in data["files"]:
-                changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"]})
+                prev = subprocess.run(['git', 'show', f'{sha}^:{file["filename"]}'], text=True, capture_output=True,
+                                      cwd=localPath)
+                next = subprocess.run(['git', 'show', f'{sha}:{file["filename"]}'], text=True, capture_output=True,
+                                      cwd=localPath)
+                changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"],
+                                "prev_file": prev.stdout, "now_file": next.stdout})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
             commit["comments"] = getCommitComment(tmp_commit.id, projectId)
@@ -1102,6 +1129,7 @@ class CommentCommit(View):
         CommitComment.objects.create(commit_id=tmp_commit, reviewer_id=reviewer, comment=comment)
         return JsonResponse(response)
 
+
 class ShowCanAssociateTasks(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -1120,9 +1148,10 @@ class ShowCanAssociateTasks(View):
         for task in tasks:
             if task.status == Task.COMPLETED:
                 continue
-            data.append({"taskName":task.name,"taskId":task.id})
+            data.append({"taskName": task.name, "taskId": task.id})
         response["data"] = data
         return JsonResponse(response)
+
 
 class AssociatePrTask(View):
     def post(self, request):
@@ -1159,7 +1188,7 @@ class AssociatePrTask(View):
             return JsonResponse(genResponseStateInfo(response, 6, "no sucn pr in repo"))
 
         if pr.applicant_id != user and pr.applicant_id is not None:
-            return JsonResponse(genResponseStateInfo(response,9,"you can not associate"))
+            return JsonResponse(genResponseStateInfo(response, 9, "you can not associate"))
 
         if not Task.objects.filter(id=taskId, project_id=project).exists():
             return JsonResponse(genResponseStateInfo(response, 7, "no such task in project"))
