@@ -238,7 +238,7 @@ class UserBindRepo(View):
         user = User.objects.get(id=userId)
         token = user.token
         # check if repo exists
-        if not validate_token(token):
+        if token is None or not validate_token(token):
             return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         try:
             localHasRepo = False
@@ -615,7 +615,7 @@ class GetContent(View):
 def validate_token(token):
     headers = {'Authorization': 'token ' + token, 'Content-Type': 'application/json; charset=utf-8'}
     response = requests.get('https://api.github.com/user', headers=headers)
-    print(token  ,response.status_code)
+    print(token, response.status_code)
     if response.status_code == 200:
         return True
     return False
@@ -695,6 +695,10 @@ class GitCommit(View):
                     Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
                                           committer_id=user,
                                           review_status=None)
+                    for file in files:
+                        FileUserCommit.objects.create(user_id=User.objects.get(id=userId),
+                                                      repo_id=Repo.objects.get(id=repoId),
+                                                      branch=branch, file=file[0], commit_sha=current_commit_sha)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -861,6 +865,10 @@ class GitBranchCommit(View):
                     Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
                                           committer_id=user,
                                           review_status=None)
+                    for file in files:
+                        FileUserCommit.objects.create(user_id=User.objects.get(id=userId),
+                                                      repo_id=Repo.objects.get(id=repoId),
+                                                      branch=branch, file=file[0], commit_sha=current_commit_sha)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -906,15 +914,17 @@ def isProjectReviewer(userId, projectId):
         return True
 
 
-def getCommitComment(commitId,projectId):
+def getCommitComment(commitId, projectId):
     comments = []
     commitComments = CommitComment.objects.filter(commit_id=commitId)
     for commit in commitComments:
         reviewer = User.objects.get(id=commit.reviewer_id_id)
         if UserProject.objects.filter(project_id=projectId, user_id=reviewer.id).exists():
             role = UserProject.objects.get(project_id=projectId, user_id=reviewer.id).role
-        else: role = None
-        comments.append({"commenterName": reviewer.name, "comment": commit.comment,"commenterId":reviewer.id,"commenterRole":role})
+        else:
+            role = None
+        comments.append({"commenterName": reviewer.name, "comment": commit.comment, "commenterId": reviewer.id,
+                         "commenterRole": role})
     return comments
 
 
@@ -977,7 +987,7 @@ class GetCommitDetails(View):
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"]})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
-            commit["comments"] = getCommitComment(tmp_commit.id,projectId)
+            commit["comments"] = getCommitComment(tmp_commit.id, projectId)
             commit["status"] = tmp_commit.review_status
             commit["reviewerName"] = tmp_commit.reviewer_id.name if tmp_commit.reviewer_id is not None else None
             response["commit"] = commit
@@ -1230,3 +1240,46 @@ class GetPrDetails(View):
             response["errcode"] = -1
             releaseSemaphore(repoId)
             return JsonResponse(response)
+
+
+class GetFileCommits(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get user commits for file ok")
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        file = kwargs.get('file')
+        branch = kwargs.get('branch')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+
+        getSemaphore(repoId)
+        fileUserCommits = FileUserCommit.objects.filter(repo_id=repoId, file=file, branch=branch)
+        commits = {}
+        for fuc in fileUserCommits:
+            if not (fuc.user_id in commits):
+                commits[fuc.user_id] = []
+            commits[fuc.user_id].append(fuc.commit_sha)
+        data = []
+        for key in commits.keys():
+            data.append({"userId": key, "commits": commits[key]})
+        response["data"] = data
+        return JsonResponse(response)
