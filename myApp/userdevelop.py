@@ -407,7 +407,9 @@ class GetCommitHistory(View):
             log = str(getCounter()) + "_getCommitHistory.log"
             localPath = Repo.objects.get(id=repoId).local_path
             getSemaphore(repoId)
-            os.system("cd " + localPath + " && git checkout " + branchName + " && git pull")
+            result_checkout = subprocess.run(["git", "checkout", branchName], cwd=localPath, capture_output=True,
+                                             text=True)
+            result_pull = subprocess.run(["git", "pull"], cwd=localPath, capture_output=True, text=True)
             cmd = "cd " + localPath + " && bash " + os.path.join(BASE_DIR,
                                                                  "myApp/get_commits.sh") + " > " + os.path.join(
                 USER_REPOS_DIR, log)
