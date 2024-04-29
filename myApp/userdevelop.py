@@ -340,19 +340,23 @@ class GetRepoBranches(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
 
         data = []
         try:
             log = str(getCounter()) + "_getRepoBranches.log"
             commitLog = str(getCounter()) + "_commitInfo.log"
             remotePath = Repo.objects.get(id=repoId).remote_path
-            os.system("gh api -H \"Accept: application/vnd.github+json\" -H \
-                \"X-GitHub-Api-Version: 2022-11-28\" /repos/" + remotePath + "/branches > " + os.path.join(
+            os.system("gh api -H \"Accept: application/vnd.github+json\"  -H \
+                \"X-GitHub-Api-Version: 2022-11-28\" " + \
+                      "-H Authorization: token" + token + "/repos/" + remotePath + "/branches > " + os.path.join(
                 USER_REPOS_DIR, log))
             ghInfo = json.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
             for it in ghInfo:
@@ -396,22 +400,28 @@ class GetCommitHistory(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 5, "invalid token"))
 
         data = []
         try:
             log = str(getCounter()) + "_getCommitHistory.log"
             localPath = Repo.objects.get(id=repoId).local_path
             if not is_independent_git_repository(localPath):
-                return JsonResponse(genResponseStateInfo(response,4,"this is not git repository???"))
+                return JsonResponse(genResponseStateInfo(response, 4, "this is not git repository???"))
             getSemaphore(repoId)
             result_checkout = subprocess.run(["git", "checkout", branchName], cwd=localPath, capture_output=True,
                                              text=True)
-            result_pull = subprocess.run(["git", "pull"], cwd=localPath, capture_output=True, text=True)
+            result_pull = subprocess.run(["git", "pull",
+                                          f"https://{token}@github.com/{repo.remote_path}.git {branchName}"],
+                                         cwd=localPath, capture_output=True, text=True)
             cmd = "cd " + localPath + " && bash " + os.path.join(BASE_DIR,
                                                                  "myApp/get_commits.sh") + " > " + os.path.join(
                 USER_REPOS_DIR, log)
@@ -456,18 +466,23 @@ class GetIssueList(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
 
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
+
         data = []
         try:
             log = "getIssueList.log"
             remotePath = Repo.objects.get(id=repoId).remote_path
-            os.system("gh api -H \"Accept: application/vnd.github+json\" -H \
-                \"X-GitHub-Api-Version: 2022-11-28\" /repos/" + remotePath + "/issues?state=all > " + os.path.join(
+            os.system("gh api -H \"Accept: application/vnd.github+json\"  -H \
+                \"X-GitHub-Api-Version: 2022-11-28\" " + \
+                      "-H Authorization: token" + token + " /repos/" + remotePath + "/issues?state=all > " + os.path.join(
                 USER_REPOS_DIR, log))
             ghInfo = json.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
             for it in ghInfo:
@@ -500,17 +515,24 @@ class GetPrList(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
 
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
+
         data = []
         try:
             log = "getPrList.log"
             remotePath = Repo.objects.get(id=repoId).remote_path
-            os.system("gh api  /repos/" + remotePath + "/pulls?state=all > " + os.path.join(USER_REPOS_DIR, log))
+            os.system("gh api -H \"Accept: application/vnd.github+json\"  -H \
+                \"X-GitHub-Api-Version: 2022-11-28\" " + \
+                      "-H Authorization: token" + token + " /repos/" + remotePath + "/pulls?state=all > " + os.path.join(
+                USER_REPOS_DIR, log))
             ghInfo = json.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
             for it in ghInfo:
                 data.append({"prId": it["number"],
@@ -557,17 +579,23 @@ class GetFileTree(View):
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None:
+        if userProject == None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.filter(id=repoId)
+
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
 
         data = []
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             getSemaphore(repoId)
-            os.system("cd " + localPath + " && git checkout " + branch + " && git pull")
+            os.system("cd " + localPath + " && git checkout " + branch + " && git pull " + \
+                      f"https://{token}@github.com/{repo.remote_path}.git {branch}")
             r = _getFileTree(localPath)
             for item in r["children"]:
                 data.append(item)
@@ -602,12 +630,18 @@ class GetContent(View):
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.filter(id=repoId)
+
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
 
         data = ""
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             getSemaphore(repoId)
-            os.system("cd " + localPath + " && git checkout " + branch + " && git pull")
+            os.system("cd " + localPath + " && git checkout " + branch + " && git pull " + \
+                      f"https://{token}@github.com/{repo.remote_path}.git {branch}")
             filePath = localPath + path  # os.path.join(localPath, path)
             DBG(filePath)
             data = "警告：这是一个二进制文件，请登录 github 查看"
