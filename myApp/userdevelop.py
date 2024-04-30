@@ -70,6 +70,16 @@ def genResponseStateInfo(response, errcode, message):
     return response
 
 
+def checkCMDError(err, errcode, response):
+    if "Failed" in err or "422" in err or "fatal" in err or "403" in err or "rejected" in err:
+        print("err is :", err)
+        response["message"] = "error at gh api :" + err
+        response["errcode"] = errcode
+        return True, response
+    else:
+        return False, response
+
+
 class GetProjectName(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -351,20 +361,35 @@ class GetRepoBranches(View):
 
         data = []
         try:
-            log = str(getCounter()) + "_getRepoBranches.log"
-            commitLog = str(getCounter()) + "_commitInfo.log"
             remotePath = Repo.objects.get(id=repoId).remote_path
-            os.system("gh api -H \"Accept: application/vnd.github+json\"  -H \
-                \"X-GitHub-Api-Version: 2022-11-28\" " + \
-                      "-H Authorization: token" + token + "/repos/" + remotePath + "/branches > " + os.path.join(
-                USER_REPOS_DIR, log))
-            ghInfo = json.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
+            command = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github+json",
+                "-H", "X-GitHub-Api-Version: 2022-11-28",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/branches",
+            ]
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            print("err is :", result.stderr)
+            flag, response = checkCMDError(result.stderr, 5, response)
+            if flag:
+                return JsonResponse(response)
+            ghInfo = json.loads(result.stdout)
             for it in ghInfo:
                 sha = it["commit"]["sha"]
-                cmd = "gh api /repos/" + remotePath + "/commits/" + sha + " > " + os.path.join(USER_REPOS_DIR,
-                                                                                               commitLog)
-                os.system(cmd)
-                commitInfo = json.load(open(os.path.join(USER_REPOS_DIR, commitLog), encoding="utf-8"))
+                cmd = [
+                    "gh", "api",
+                    "-H", "Accept: application/vnd.github+json",
+                    "-H", "X-GitHub-Api-Version: 2022-11-28",
+                    "-H", f"Authorization: token {token}",
+                    f"/repos/{remotePath}/commits/{sha}",
+                ]
+                cmd_result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                print("out is :", cmd_result.stdout)
+                flag, response = checkCMDError(cmd_result.stderr, 6, response)
+                if flag:
+                    return JsonResponse(response)
+                commitInfo = json.loads(cmd_result.stdout)
                 data.append({"branchName": it["name"],
                              "lastCommit": {
                                  "sha": sha,
@@ -375,8 +400,6 @@ class GetRepoBranches(View):
                              }
                              })
             response["data"] = data
-            # os.system("rm -f " + os.path.join(USER_REPOS_DIR, log))
-            # os.system("rm -f " + os.path.join(USER_REPOS_DIR, commitLog))
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -405,6 +428,7 @@ class GetCommitHistory(View):
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+
         repo = Repo.objects.get(id=repoId)
         token = User.objects.get(id=userId).token
         if token is None or validate_token(token) == False:
@@ -412,38 +436,39 @@ class GetCommitHistory(View):
 
         data = []
         try:
-            log = str(getCounter()) + "_getCommitHistory.log"
-            localPath = Repo.objects.get(id=repoId).local_path
+            localPath = repo.local_path
+            remotePath = repo.remote_path
             if not is_independent_git_repository(localPath):
                 return JsonResponse(genResponseStateInfo(response, 4, "this is not git repository???"))
             getSemaphore(repoId)
-            result_checkout = subprocess.run(["git", "checkout", branchName], cwd=localPath, capture_output=True,
-                                             text=True)
-            result_pull = subprocess.run(["git", "pull",
-                                          f"https://{token}@github.com/{repo.remote_path}.git {branchName}"],
-                                         cwd=localPath, capture_output=True, text=True)
-            cmd = "cd " + localPath + " && bash " + os.path.join(BASE_DIR,
-                                                                 "myApp/get_commits.sh") + " > " + os.path.join(
-                USER_REPOS_DIR, log)
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=localPath)
-            print("out is ", result.stdout)
-            print("err is ", result.stderr)
+            cmd = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github+json",
+                "-H", "X-GitHub-Api-Version: 2022-11-28",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/commits?sha={branchName}",
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            flag, response = checkCMDError(result.stderr, 5, response)
+            if flag:
+                print("err is ", result.stderr)
+                return JsonResponse(response)
             releaseSemaphore(repoId)
-            try:
-                ghInfo = json5.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
-            except Exception as e:
-                DBG("in GetCommitHistory has excp : " + str(e))
+            ghInfo = json.loads(result.stdout)
             for info in ghInfo:
-                sha = info["commithash"]
-                print(sha)
+                sha = info["sha"]
                 if not Commit.objects.filter(sha=sha).exists():
                     tmp_commit = Commit.objects.create(repo_id=Repo.objects.get(id=repoId), sha=sha,
                                                        committer_name=info["author"])
                 else:
                     tmp_commit = Commit.objects.filter(sha=sha)[0]
-                info["status"] = tmp_commit.review_status
-            response["data"] = ghInfo
-            os.system("rm -f " + os.path.join(USER_REPOS_DIR, log))
+                data.append({"commithash": sha, "author": info["commit"]['author']['name'],
+                             "authorEmail": info['commit']['author']['email'],
+                             "commitTime": info["commit"]["author"]["date"],
+                             "commitMessage": info["commit"]["message"],
+                             "status": tmp_commit.review_status}
+                            )
+                response["data"] = data
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -478,13 +503,20 @@ class GetIssueList(View):
 
         data = []
         try:
-            log = "getIssueList.log"
             remotePath = Repo.objects.get(id=repoId).remote_path
-            os.system("gh api -H \"Accept: application/vnd.github+json\"  -H \
-                \"X-GitHub-Api-Version: 2022-11-28\" " + \
-                      "-H Authorization: token" + token + " /repos/" + remotePath + "/issues?state=all > " + os.path.join(
-                USER_REPOS_DIR, log))
-            ghInfo = json.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
+            cmd = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github+json",
+                "-H", "X-GitHub-Api-Version: 2022-11-28",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/issues?state=all",
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            flag, response = checkCMDError(result.stderr, 5, response)
+            if flag:
+                print("err is :", result.stderr)
+                return JsonResponse(response)
+            ghInfo = json.loads(result.stdout)
             for it in ghInfo:
                 data.append({"issueId": it["number"],
                              "issuer": it["user"]["login"],
@@ -527,13 +559,20 @@ class GetPrList(View):
 
         data = []
         try:
-            log = "getPrList.log"
             remotePath = Repo.objects.get(id=repoId).remote_path
-            os.system("gh api -H \"Accept: application/vnd.github+json\"  -H \
-                \"X-GitHub-Api-Version: 2022-11-28\" " + \
-                      "-H Authorization: token" + token + " /repos/" + remotePath + "/pulls?state=all > " + os.path.join(
-                USER_REPOS_DIR, log))
-            ghInfo = json.load(open(os.path.join(USER_REPOS_DIR, log), encoding="utf-8"))
+            cmd = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github+json",
+                "-H", "X-GitHub-Api-Version: 2022-11-28",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/pulls?state=all",
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            flag, response = checkCMDError(result.stderr, 5, response)
+            if flag:
+                print("err is :", result.stderr)
+                return JsonResponse(response)
+            ghInfo = json.loads(result.stdout)
             for it in ghInfo:
                 data.append({"prId": it["number"],
                              "prIssuer": it["user"]["login"],
