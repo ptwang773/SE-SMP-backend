@@ -623,7 +623,7 @@ class GetFileTree(View):
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
-        repo = Repo.objects.filter(id=repoId)
+        repo = Repo.objects.get(id=repoId)
 
         token = User.objects.get(id=userId).token
         if token is None or validate_token(token) == False:
@@ -669,7 +669,7 @@ class GetContent(View):
 
         if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
-        repo = Repo.objects.filter(id=repoId)
+        repo = Repo.objects.get(id=repoId)
 
         token = User.objects.get(id=userId).token
         if token is None or validate_token(token) == False:
