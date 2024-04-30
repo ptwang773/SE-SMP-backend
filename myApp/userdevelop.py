@@ -633,8 +633,11 @@ class GetFileTree(View):
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             getSemaphore(repoId)
-            os.system("cd " + localPath + " && git checkout " + branch + " && git pull " + \
-                      f"https://{token}@github.com/{repo.remote_path}.git {branch}")
+            cmd = ['git', 'pull', f"https://{token}@github.com/{repo.remote_path}.git"]
+            result = subprocess.run(cmd, cwd=localPath, check=True, capture_output=True, text=True)
+            print("err is :", result.stderr)
+            cmd = ["git", "checkout", f"{branch}"]
+            subprocess.run(cmd, cwd=localPath, check=True)
             r = _getFileTree(localPath)
             for item in r["children"]:
                 data.append(item)
@@ -679,8 +682,10 @@ class GetContent(View):
         try:
             localPath = Repo.objects.get(id=repoId).local_path
             getSemaphore(repoId)
-            os.system("cd " + localPath + " && git checkout " + branch + " && git pull " + \
-                      f"https://{token}@github.com/{repo.remote_path}.git {branch}")
+            cmd = ['git', 'pull', f"https://{token}@github.com/{repo.remote_path}.git"]
+            subprocess.run(cmd, cwd=localPath, check=True)
+            cmd = ["git", "checkout", f"{branch}"]
+            subprocess.run(cmd, cwd=localPath, check=True)
             filePath = localPath + path  # os.path.join(localPath, path)
             DBG(filePath)
             data = "警告：这是一个二进制文件，请登录 github 查看"
@@ -754,16 +759,16 @@ class GitCommit(View):
                 return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
             getSemaphore(repoId)
             if validate_token(token):
-                subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-                subprocess.run(["git", "checkout", branch], cwd=localPath)
+                subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath, check=True)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath, check=True)
+                subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
                 log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
 
                 print(log_path)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                               cwd=localPath)
-                subprocess.run(['git', 'pull'], cwd=localPath)
+                               cwd=localPath, check=True)
+                subprocess.run(['git', 'pull'], cwd=localPath, check=True)
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
                     print(path)
@@ -774,20 +779,20 @@ class GitCommit(View):
                             f.write(content)
                     except Exception as e:
                         print(f"Failed to overwrite file {path}: {e}")
-                    subprocess.run(["git", "add", path], cwd=localPath)
-                subprocess.run(["git", "commit", "-m", message], cwd=localPath)
+                    subprocess.run(["git", "add", path], cwd=localPath, check=True)
+                subprocess.run(["git", "commit", "-m", message], cwd=localPath, check=True)
 
                 result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
-                                        text=True)
+                                        text=True, check=True)
                 print("out is ", result.stdout)
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
-                    subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath)
+                    subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath, check=True)
                     response["message"] = result.stderr
                     errcode = 7
                 else:
                     result = subprocess.run(["git", "log", "-1", "--pretty=format:%H"], cwd=localPath,
-                                            capture_output=True, text=True)
+                                            capture_output=True, text=True, check=True)
                     current_commit_sha = result.stdout.strip()
                     print(current_commit_sha)
                     Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
@@ -798,9 +803,9 @@ class GitCommit(View):
                                                       repo_id=repo,
                                                       branch=branch, file=file['path'], commit_sha=current_commit_sha)
                     errcode = 0
-                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath, check=True)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath, check=True)
                 response['errcode'] = errcode
                 releaseSemaphore(repoId)
                 os.system("rm -f " + log_path)
