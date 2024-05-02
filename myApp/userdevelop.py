@@ -637,7 +637,7 @@ class GetFileTree(View):
             result = subprocess.run(cmd, cwd=localPath, check=True, capture_output=True, text=True)
             print("err is :", result.stderr)
             cmd = ["git", "checkout", f"{branch}"]
-            subprocess.run(cmd, cwd=localPath, check=True)
+            subprocess.run(cmd, cwd=localPath)
             r = _getFileTree(localPath)
             for item in r["children"]:
                 data.append(item)
@@ -760,15 +760,10 @@ class GitCommit(View):
             getSemaphore(repoId)
             if validate_token(token):
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath, check=True)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath, check=True)
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
-                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
-
-                print(log_path)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                               cwd=localPath, check=True)
-                subprocess.run(['git', 'pull'], cwd=localPath, check=True)
+                               cwd=localPath)
+                subprocess.run(['git', 'pull', f'{branch}'], cwd=localPath)
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
                     print(path)
@@ -798,17 +793,37 @@ class GitCommit(View):
                     Commit.objects.create(repo_id=repo, sha=current_commit_sha, committer_name=user.name,
                                           committer_id=user,
                                           review_status=None)
+                    # cooperate & file commit update
                     for file in files:
                         FileUserCommit.objects.create(user_id=user,
                                                       repo_id=repo,
                                                       branch=branch, file=file['path'], commit_sha=current_commit_sha)
+                        # modify Cooperate
+                        tmp = FileUserCommit.objects.filter(repo_id=repo, branch=branch, file=file['path']).exclude(
+                            user_id=user)
+                        if tmp.exists():
+                            for item in tmp:
+                                user2 = item.user_id
+                                if not Cooperate.objects.filter(user1_id=user, user2_id=user2,
+                                                                project_id=project).exists():
+                                    Cooperate.objects.create(user1_id=user, user2_id=user2, project_id=project)
+                                cooperate = Cooperate.objects.get(user1_id=user, user2_id=user2, project_id=project)
+                                cooperate.relation += 1
+                                cooperate.save()
+                                if not Cooperate.objects.filter(user1_id=user2, user2_id=user,
+                                                                project_id=project).exists():
+                                    Cooperate.objects.create(user1_id=user2, user2_id=user, project_id=project)
+                                cooperate = Cooperate.objects.get(user1_id=user2, user2_id=user, project_id=project)
+                                cooperate.relation += 1
+                                cooperate.save()
+                    UserProjectActivity.objects.create(user_id=user, project_id=project,
+                                                       option=UserProjectActivity.COMMIT_CODE)
                     errcode = 0
-                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath, check=True)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath, check=True)
+                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 response['errcode'] = errcode
                 releaseSemaphore(repoId)
-                os.system("rm -f " + log_path)
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
@@ -977,6 +992,26 @@ class GitBranchCommit(View):
                                                       repo_id=repo,
                                                       branch=branch, file=file['path'],
                                                       commit_sha=current_commit_sha)
+                        # modify Cooperate
+                        tmp = FileUserCommit.objects.filter(repo_id=repo, branch=branch, file=file['path']).exclude(
+                            user_id=user)
+                        if tmp.exists():
+                            for item in tmp:
+                                user2 = item.user_id
+                                if not Cooperate.objects.filter(user1_id=user, user2_id=user2,
+                                                                project_id=project).exists():
+                                    Cooperate.objects.create(user1_id=user, user2_id=user2, project_id=project)
+                                cooperate = Cooperate.objects.get(user1_id=user, user2_id=user2, project_id=project)
+                                cooperate.relation += 1
+                                cooperate.save()
+                                if not Cooperate.objects.filter(user1_id=user2, user2_id=user,
+                                                                project_id=project).exists():
+                                    Cooperate.objects.create(user1_id=user2, user2_id=user, project_id=project)
+                                cooperate = Cooperate.objects.get(user1_id=user2, user2_id=user, project_id=project)
+                                cooperate.relation += 1
+                                cooperate.save()
+                    UserProjectActivity.objects.create(user_id=user, project_id=project,
+                                                       option=UserProjectActivity.COMMIT_CODE)
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -1394,7 +1429,8 @@ class ResolvePr(View):
                         i.complete_time = datetime.datetime.now()
                         print(i.id, " is completed with pr")
                         i.save()
-
+            UserProjectActivity.objects.create(user_id=user, project_id=project,
+                                               option=UserProjectActivity.FINISH_TASK)
             response['errcode'] = errcode
             releaseSemaphore(repoId)
             return JsonResponse(response)
@@ -1506,11 +1542,13 @@ class GetFileCommits(View):
         fileUserCommits = FileUserCommit.objects.filter(repo_id=repoId, file=file, branch=branch)
         commits = {}
         for fuc in fileUserCommits:
-            if not (fuc.user_id in commits):
-                commits[fuc.user_id] = []
-            commits[fuc.user_id].append(fuc.commit_sha)
+            if not (fuc.user_id_id in commits):
+                commits[fuc.user_id_id] = []
+            commits[fuc.user_id_id].append(fuc.commit_sha)
+            print(fuc.commit_sha)
         data = []
         for key in commits.keys():
-            data.append({"userId": key, "commits": commits[key]})
+            data.append({"userId": key, "commits": commits[key], "count": len(commits[key])})
         response["data"] = data
+        releaseSemaphore(repoId)
         return JsonResponse(response)

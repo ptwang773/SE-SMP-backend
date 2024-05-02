@@ -70,8 +70,8 @@ urlpatterns = [
     path('api/develop/gitPr', userdevelop.GitPr.as_view()),
     path('api/develop/resolvePr', userdevelop.ResolvePr.as_view()),
     path('api/develop/getPrDetails', userdevelop.GetPrDetails.as_view()),
-    path('api/develop/associatePrTask',userdevelop.AssociatePrTask.as_view()),
-    path('api/develop/showCanAssociateTasks',userdevelop.ShowCanAssociateTasks.as_view()),
+    path('api/develop/associatePrTask', userdevelop.AssociatePrTask.as_view()),
+    path('api/develop/showCanAssociateTasks', userdevelop.ShowCanAssociateTasks.as_view()),
 
     path('api/develop/getFileCommits', userdevelop.GetFileCommits.as_view()),
 
@@ -111,7 +111,8 @@ urlpatterns = [
     path('api/plan/reviewTask', userPlan.reviewTask.as_view()),
     path('api/plan/getUserProjectAuths', userPlan.getUserProjectAuths.as_view()),
     path('api/plan/changeUserProjectAuths', userPlan.changeUserProjectAuths.as_view()),
-    path('api/plan/showCooperate', userPlan.showCooperate.as_view),
+    path('api/plan/showCooperate', userPlan.showCooperate.as_view()),
+    path('api/plan/showActivity', userPlan.showActivity.as_view()),
 
     path('api/echo', debug.echo),
     path('api/notice/userPostNoticeToAll', notice.UserPostNoticeToAll.as_view()),

@@ -330,7 +330,7 @@ class CommitComment(models.Model):
 class Pr(models.Model):
     id = models.AutoField(primary_key=True)
     applicant_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None)
-    applicant_name = models.CharField(max_length=255,null=True, default=None)
+    applicant_name = models.CharField(max_length=255, null=True, default=None)
     repo_id = models.ForeignKey(Repo, on_delete=models.CASCADE)
     reviewer_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, default=None, related_name='pr_reviewer')
     src_branch = models.CharField(max_length=255)
@@ -341,10 +341,10 @@ class Pr(models.Model):
     MERGED = 3
     DRAFT = 4
     PR_STATUS_LIST = {
-        (OPEN,1),
-        (CLOSED,2),
+        (OPEN, 1),
+        (CLOSED, 2),
         (MERGED, 3),
-        (DRAFT,4)
+        (DRAFT, 4)
     }
     pr_status = models.IntegerField(choices=PR_STATUS_LIST, default=None, null=True)
 
@@ -361,12 +361,11 @@ class Pr_Comment(models.Model):
 
 
 class Cooperate(models.Model):
-    user1_id = models.ForeignKey(User, on_delete=models.CASCADE,related_name="user1_cooperate")
+    user1_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user1_cooperate")
     user2_id = models.ForeignKey(User, on_delete=models.CASCADE)
     project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     relation = models.IntegerField(default=0)
 
-# TODO : add enum check in function
 
 class FileUserCommit(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -374,3 +373,16 @@ class FileUserCommit(models.Model):
     branch = models.CharField(max_length=255)
     file = models.CharField(max_length=255)
     commit_sha = models.CharField(max_length=255)
+
+
+class UserProjectActivity(models.Model):
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    complete_time = models.DateTimeField(default="2050-12-31")
+    FINISH_TASK = "A"
+    COMMIT_CODE = "B"
+    OPTION_LIST = {
+        (FINISH_TASK, "A"),
+        (COMMIT_CODE, "B")
+    }
+    option = models.CharField(max_length=1, choices=OPTION_LIST, default=None, null=True)

@@ -8,6 +8,8 @@ from django.db.models import Q
 import json
 import datetime
 
+from myApp.userdevelop import genResponseStateInfo
+
 validTaskLabel = ["A", "B", "C", "D", "E"]
 validTaskLabelContent = ["BUG", "ENHANCEMENT", "FEATURE", "DUPLICATE", "QUESTION"]
 
@@ -427,7 +429,8 @@ class completeTask(View):
         for i in subtasks:
             i.status = Task.COMPLETED
             i.save()
-
+        UserProjectActivity.objects.create(user_id=request.user, project_id=projectId,
+                                           option=UserProjectActivity.FINISH_TASK)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = None
@@ -709,11 +712,11 @@ class addMember(View):
             response['message'] = "user not admin"
             response['data'] = None
             return JsonResponse(response)
-
-        UserProject.objects.create(user_id_id=peopleId, project_id_id=projectId, role=UserProject.NORMAL)
         personList = UserProject.objects.filter(project_id_id=projectId)
         for person in personList:
             Cooperate.objects.create(user1_id_id=person.user_id.id, user2_id_id=peopleId, project_id_id=projectId)
+            Cooperate.objects.create(user1_id_id=peopleId, user2_id_id=peopleId, project_id_id=projectId)
+        UserProject.objects.create(user_id_id=peopleId, project_id_id=projectId, role=UserProject.NORMAL)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = None
@@ -764,6 +767,7 @@ class removeMember(View):
         Cooperate.objects.filter(Q(user1_id=peopleId) | Q(user2_id=peopleId), project_id=projectId).delete()
 
         UserProject.objects.filter(user_id_id=peopleId, project_id_id=projectId).delete()
+        UserProjectActivity.objects.filter(user_id_id=peopleId, project_id_id=projectId).delete()
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = None
@@ -1213,27 +1217,58 @@ class changeUserProjectAuths(View):
 
 class showCooperate(View):
     def post(self, request):
-        response = {'errcode': 0, 'message': "404 not success"}
+        response = {'errcode': -1, 'message': "404 not success"}
         try:
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-        response['message'] = "this is the cooperate relation"
+        genResponseStateInfo(response, 0, "get project cooperate ok")
         projectId = kwargs.get("projectId", -1)
         if Project.objects.filter(id=projectId).count() == 0:
-            response['errcode'] = 1
-            response['message'] = "project not exist"
-            response['data'] = None
-            return JsonResponse(response)
+            return JsonResponse(genResponseStateInfo(response, 1, "project not exist"))
         data = []
         pairs = Cooperate.objects.filter(project_id=projectId)
+        my_set = set()
         for pair in pairs:
+            if (pair.user1_id_id, pair.user2_id_id) in my_set or (pair.user2_id_id, pair.user1_id_id) in my_set:
+                continue
+            my_set.add((pair.user1_id_id, pair.user2_id_id))
+            my_set.add((pair.user2_id_id, pair.user1_id_id))
             data.append({
-                "cooperateUser1_id": pair.user1_id,
-                "cooperateUser1_name": User.objects.get(id=pair.user1_id).name,
-                "cooperateUser2_id": pair.user2_id,
-                "cooperateUser2_name": User.objects.get(id=pair.user2_id).name,
+                "cooperateUser1_id": pair.user1_id_id,
+                "cooperateUser1_name": User.objects.get(id=pair.user1_id_id).name,
+                "cooperateUser2_id": pair.user2_id_id,
+                "cooperateUser2_name": User.objects.get(id=pair.user2_id_id).name,
                 "cooperateRelation": pair.relation
             })
+        response['data'] = data
+        return JsonResponse(response)
+
+
+class showActivity(View):
+    def post(self, request):
+        response = {'errcode': -1, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get project activity ok")
+        projectId = kwargs.get("projectId", -1)
+        # begin = kwargs.get("beginDate", -1)
+        # end = kwargs.get("endDate", -1)
+        if Project.objects.filter(id=projectId).count() == 0:
+            return JsonResponse(genResponseStateInfo(response, 1, "project not exist"))
+        tmp = UserProjectActivity.objects.filter(project_id=projectId)
+        users = {}
+        for item in tmp:
+            if not item.user_id_id in users:
+                users[item.user_id_id] = {"task": 0, "code": 0}
+            if item.option == UserProjectActivity.COMMIT_CODE:
+                users[item.user_id_id]["code"] += 1
+            else:
+                users[item.user_id_id]["task"] += 1
+        data = []
+        for user in users:
+            data.append({"userId": user, "task": users[user]["task"], "code": users[user]["code"]})
         response['data'] = data
         return JsonResponse(response)
