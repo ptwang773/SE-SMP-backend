@@ -1115,11 +1115,8 @@ class GetCommitDetails(View):
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=True)
 
-            tmp = subprocess.run(['git', 'pull'], stderr=subprocess.PIPE,
-                                 text=True)
-            if "fatal" in tmp.stderr:
-                return JsonResponse(genResponseStateInfo(response, 7, tmp.stderr))
-
+            subprocess.run(['git', 'pull'], stderr=subprocess.PIPE,
+                           text=True, check=True)
             output = result.stdout
             localPath = repo.local_path
             data = json.loads(output)
@@ -1135,9 +1132,9 @@ class GetCommitDetails(View):
             changes = []
             for file in data["files"]:
                 prev = subprocess.run(['git', 'show', f'{sha}^:{file["filename"]}'], text=True, capture_output=True,
-                                      cwd=localPath)
+                                      cwd=localPath, check=True)
                 next = subprocess.run(['git', 'show', f'{sha}:{file["filename"]}'], text=True, capture_output=True,
-                                      cwd=localPath)
+                                      cwd=localPath, check=True)
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"],
                                 "prev_file": prev.stdout, "now_file": next.stdout})
             commit["files"] = changes
@@ -1443,6 +1440,28 @@ class ResolvePr(View):
             return JsonResponse(response)
 
 
+def getPrStatus(status, merged):
+    if status == "closed" and merged:
+        return Pr.MERGED
+    elif status == "open":
+        return Pr.OPEN
+    elif status == "closed" and not merged:
+        return Pr.CLOSED
+    else:
+        return Pr.DRAFT
+
+
+def parsePrStatus(status):
+    if status == 1:
+        return "open"
+    elif status == 2:
+        return "closed"
+    elif status == 3:
+        return "merged"
+    else:
+        return "draft"
+
+
 class GetPrDetails(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -1451,7 +1470,7 @@ class GetPrDetails(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-        genResponseStateInfo(response, 0, "get commit ok")
+        genResponseStateInfo(response, 0, "get pr details ok")
         prId = kwargs.get('prId')
         userId = kwargs.get('userId')
         projectId = kwargs.get('projectId')
@@ -1488,15 +1507,37 @@ class GetPrDetails(View):
             result = subprocess.run(command, capture_output=True, text=True, check=True)
             output = result.stdout
             jsonOutput = json.loads(output)
-
+            if not Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
+                pr = Pr.objects.create(repo_id=repo, src_branch=jsonOutput["head"]["label"].split(':')[1],
+                                       dst_branch=jsonOutput["base"]["label"].split(':')[1],
+                                       pr_number=jsonOutput["number"], applicant_name=jsonOutput["user"]["login"])
+            else:
+                pr = Pr.objects.get(repo_id=repo, pr_number=prId)
+            pr.pr_status = getPrStatus(jsonOutput["state"], jsonOutput["merged"])
+            pr.save()
             data = {
-                "state": jsonOutput["state"],
+                "state": parsePrStatus(pr.pr_status),
                 "title": jsonOutput["title"],
                 "body": jsonOutput["body"],
                 "merge_commit_sha": jsonOutput["merge_commit_sha"],
                 "branch": jsonOutput["head"]["ref"],
-                "base": jsonOutput["base"]["ref"]
+                "base": jsonOutput["base"]["ref"],
+                "commits": []
             }
+            command = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github+json",
+                "-H", "X-GitHub-Api-Version: 2022-11-28",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{owner}/{repo_name}/pulls/{prId}/commits"
+            ]
+            res = subprocess.run(command, capture_output=True, text=True, check=True)
+            out = json.loads(res.stdout)
+
+            for commit in out:
+                data["commits"].append({"sha": commit["sha"], "author": commit["commit"]["author"]["name"],
+                                        "time": commit["commit"]["author"]["date"],
+                                        "message": commit["commit"]["message"]})
             response["data"] = data
             releaseSemaphore(repoId)
             return JsonResponse(response)
