@@ -1114,9 +1114,13 @@ class GetCommitDetails(View):
         ]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=True)
-
+            remotePath = repo.remote_path
+            localPath = repo.local_path
+            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                           cwd=localPath, check=True)
             subprocess.run(['git', 'pull'], stderr=subprocess.PIPE,
                            text=True, check=True)
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             output = result.stdout
             localPath = repo.local_path
             data = json.loads(output)
@@ -1131,12 +1135,18 @@ class GetCommitDetails(View):
                 tmp_commit = Commit.objects.filter(sha=sha)[0]
             changes = []
             for file in data["files"]:
-                prev = subprocess.run(['git', 'show', f'{sha}^:{file["filename"]}'], text=True, capture_output=True,
-                                      cwd=localPath, check=True)
-                next = subprocess.run(['git', 'show', f'{sha}:{file["filename"]}'], text=True, capture_output=True,
+                prev = subprocess.run(['git', 'show', f'{sha}^:{file["filename"]}'], text=True,
+                                      capture_output=True,
+                                      cwd=localPath)
+                if "fatal" in prev.stderr:
+                    prev = None
+                else:
+                    prev = prev.stdout
+                next = subprocess.run(['git', 'show', f'{sha}:{file["filename"]}'], text=True,
+                                      capture_output=True,
                                       cwd=localPath, check=True)
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": file["patch"],
-                                "prev_file": prev.stdout, "now_file": next.stdout})
+                                "prev_file": prev, "now_file": next.stdout})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
             commit["comments"] = getCommitComment(tmp_commit.id, projectId)
@@ -1148,7 +1158,7 @@ class GetCommitDetails(View):
         except subprocess.CalledProcessError as e:
             print("命令执行失败:", e)
             print("错误输出:", e.stderr)
-            response["message"] = e.stderr
+            response["message"] = str(e.cmd) + str(e)
             response["errcode"] = -1
             releaseSemaphore(repoId)
             return JsonResponse(response)

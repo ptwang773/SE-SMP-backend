@@ -124,8 +124,9 @@ urlpatterns = [
     path('api/plan/getEmail', userPlan.getEmail.as_view()),
     path('api/ai/UnitTest', AI.UnitTest.as_view()),
     path('api/ai/CodeReview', AI.CodeReview.as_view()),
-    path('api/ai/CreateLabel', AI.CreateLabel.as_view()),
-    path('api/ai/CreateCommitMessage', AI.CreateCommitMessage.as_view()),
+    path('api/ai/generateCommitMessage', AI.GenerateCommitMessage.as_view()),
+    path('api/ai/generateLabel', AI.GenerateLabel.as_view()),
+
     path('api/plan/showContribute', userPlan.showContribute.as_view()),
     path('api/plan/changeOrder', userPlan.changeOrder.as_view()),
     path('api/doc/userDocList', shareDoc.UserDocList.as_view()),

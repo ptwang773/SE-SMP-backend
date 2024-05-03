@@ -1,6 +1,7 @@
 import subprocess
 
 import openai
+from openai import OpenAI
 import os
 from django.http import JsonResponse
 from django.views import View
@@ -9,13 +10,10 @@ import datetime
 
 from myApp.models import *
 from myApp.userdevelop import genResponseStateInfo, isUserInProject, isProjectExists, is_independent_git_repository, \
-    getSemaphore, releaseSemaphore, genUnexpectedlyErrorInfo
-
-# from google.cloud import language_v1
-# import git
+    getSemaphore, releaseSemaphore, genUnexpectedlyErrorInfo, validate_token
 
 # openai.organization = "org-fBoqj45hvJisAEGMR5cvPnDS"
-openai.api_key = "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"
+api_key = "sk-proj-YjxEM9CWA8GhasSyqtoGT3BlbkFJ1kL8VTIIZ5GxZCBWH3Tu"
 
 text = """class getEmail(View):
     def post(self, request):
@@ -94,47 +92,6 @@ class CodeReview(View):
         return JsonResponse(response)
 
 
-class CreateLabel(View):
-    def post(self, request):
-        response = {'errcode': 0, 'message': "404 not success"}
-        try:
-            kwargs: dict = json.loads(request.body)
-        except Exception:
-            return JsonResponse(response)
-        task = kwargs.get("")
-        client = language_v1.LanguageServiceClient()
-        document = {"content": task, "type_": language_v1.Document.Type.PLAIN_TEXT}
-        data = client.analyze_sentiment(request={'document': document})
-        response['errcode'] = 0
-        response['message'] = "success"
-        response['data'] = data
-        return JsonResponse(response)
-
-
-class CreateCommitMessage(View):
-    def post(self, request):
-        response = {'errcode': 0, 'message': "404 not success"}
-        try:
-            kwargs: dict = json.loads(request.body)
-        except Exception:
-            return JsonResponse(response)
-        sha = kwargs.get("sha")
-        repo_path = '/path/to/your/repository'
-        repo = git.Repo(repo_path)
-        commit = repo.commit(sha)
-        parent_commit = commit.parents[0] if commit.parents else None
-        diff = commit.diff(parent_commit) if parent_commit else commit.diff()
-        data = []
-        for file_diff in diff:
-            data.append("File:" + file_diff.a_path)
-            data.append("Diff:")
-            data.append(file_diff.diff)
-        response['errcode'] = 0
-        response['message'] = "success"
-        response['data'] = data
-        return JsonResponse(response)
-
-
 class GenerateCommitMessage(View):
     def post(self, request):
         response = {'errcode': 0, 'message': "404 not success"}
@@ -142,7 +99,6 @@ class GenerateCommitMessage(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-
         userId = kwargs.get('userId')
         projectId = kwargs.get('projectId')
         repoId = kwargs.get('repoId')
@@ -158,6 +114,8 @@ class GenerateCommitMessage(View):
             return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
         repo = Repo.objects.get(id=repoId)
 
+        user = User.objects.get(id=userId)
+        token = user.token
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
         try:
@@ -168,44 +126,52 @@ class GenerateCommitMessage(View):
             if not is_independent_git_repository(localPath):
                 return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
             getSemaphore(repoId)
-            subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
-            subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
-            subprocess.run(['git', 'pull', f'{branch}'], cwd=localPath)
-            for file in files:
-                path = os.path.join(localPath, file.get('path'))
-                print(path)
-                content = file.get('content')
-                print("$$$$$$$$$$ modify file ", path)
-                try:
-                    with open(path, 'w') as f:
-                        f.write(content)
-                except Exception as e:
-                    print(f"Failed to overwrite file {path}: {e}")
-                subprocess.run(["git", "add", path], cwd=localPath, check=True)
-
-            diff = subprocess.run(["git", "diff"], cwd=localPath, stderr=subprocess.PIPE,
-                                  text=True, check=True)
-
-            subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=localPath, check=True)
-            subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-            subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-            releaseSemaphore(repoId)
+            if validate_token(token):
+                subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
+                subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
+                subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                               cwd=localPath)
+                subprocess.run(['git', 'pull', f'{branch}'], cwd=localPath)
+                for file in files:
+                    path = os.path.join(localPath, file.get('path'))
+                    content = file.get('content')
+                    print("$$$$$$$$$$ modify file ", path,content)
+                    try:
+                        with open(path, 'w') as f:
+                            f.write(content)
+                    except Exception as e:
+                        print(f"Failed to overwrite file {path}: {e}")
+                diff = subprocess.run(["git", "diff"], cwd=localPath, capture_output=True,
+                                      text=True, check=True)
+                print("diff is :",diff.stdout)
+                if diff.stdout is None:
+                    return JsonResponse(genResponseStateInfo(response,7,"you have not modify file"))
+                subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=localPath, check=True)
+                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
+                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+                releaseSemaphore(repoId)
+            else:
+                return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
             subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo.local_path, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
-        model = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        client = OpenAI(
+            # This is the default and can be omitted
+            api_key=api_key,
+        )
+        chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "请针对以下git diff内容,为此次commit生成一些合适的message," +
-                                            diff.stderr + ", speak English"},
-            ]
+                                            diff.stdout + ", speak English"},
+            ],
+            model="gpt-3.5-turbo",
         )
-
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = model["choices"][0]["message"]["content"]
+        response['data'] = chat_completion["choices"][0]["message"]["content"]
         return JsonResponse(response)
 
 
