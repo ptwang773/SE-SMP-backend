@@ -190,6 +190,7 @@ class addTask(View):
 
         name = kwargs.get("taskName", "")
         projectId = kwargs.get("projectId", 0)
+        outline = kwargs.get("outlinte", "")
         if Project.objects.filter(id=projectId).count() == 0:
             response['errcode'] = 1
             response['message'] = "project not exist"
@@ -207,6 +208,7 @@ class addTask(View):
         task = Task.objects.create(name=name, project_id=project, deadline=deadline)
         task.status = Task.NOTSTART
         task.order = task.id
+        task.outline = outline
         task.save()
 
         response['errcode'] = 0
@@ -234,6 +236,7 @@ class addSubTask(View):
         belongTask = kwargs.get("fatherTaskId", -1)
         managerId = kwargs.get("managerId", -1)
         label = kwargs.get("subTaskLabel", None)
+        outline = kwargs.get("outline", "")
 
         t = kwargs.get("start_time", "")
         y, m, d = t.split("-")
@@ -270,7 +273,8 @@ class addSubTask(View):
         deadline = datetime.datetime(year=year, month=month, day=day)
         startTime = datetime.datetime(year=y, month=m, day=d)
         task = Task.objects.create(name=name, deadline=deadline, contribute_level=contribute, project_id_id=projectId,
-                                   parent_id_id=belongTask, start_time=startTime, task_label=Label_Content_KV[label])
+                                   parent_id_id=belongTask, start_time=startTime, task_label=Label_Content_KV[label],
+                                   outline=outline)
         task.status = Task.NOTSTART
         task.save()
 
@@ -353,6 +357,7 @@ class modifyTaskContent(View):
         managerId = kwargs.get("managerId", -1)
         startTime = kwargs.get("start_time", "")
         label = kwargs.get("label", None)
+        outline = kwargs.get("outline","")
         y, m, d = startTime.split("-")
         y = int(y)
         m = int(m)
@@ -376,6 +381,7 @@ class modifyTaskContent(View):
         task.start_time = datetime.datetime(year=y, month=m, day=d)
         task.contribute_level = contribute
         task.name = taskName
+        task.outline = outline
         try:
             index = validTaskLabelContent.index(label)
             task.task_label = Task.LABEL_LIST[index][0]
