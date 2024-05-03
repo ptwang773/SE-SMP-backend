@@ -1084,7 +1084,7 @@ class GetCommitDetails(View):
         userId = kwargs.get('userId')
         projectId = kwargs.get('projectId')
         repoId = kwargs.get('repoId')
-
+        branch = kwargs.get('branch')
         project = isProjectExists(projectId)
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
@@ -1118,7 +1118,8 @@ class GetCommitDetails(View):
             localPath = repo.local_path
             subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                            cwd=localPath, check=True)
-            subprocess.run(['git', 'pull'], stderr=subprocess.PIPE,
+            print(f"https://{token}@github.com/{remotePath}.git")
+            subprocess.run(['git', 'fetch', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
                            text=True, check=True)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             output = result.stdout
@@ -1158,7 +1159,8 @@ class GetCommitDetails(View):
         except subprocess.CalledProcessError as e:
             print("命令执行失败:", e)
             print("错误输出:", e.stderr)
-            response["message"] = str(e.cmd) + str(e)
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
+            response["message"] = str(e)
             response["errcode"] = -1
             releaseSemaphore(repoId)
             return JsonResponse(response)
