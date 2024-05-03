@@ -1545,9 +1545,18 @@ class GetPrDetails(View):
             ]
             res = subprocess.run(command, capture_output=True, text=True, check=True)
             out = json.loads(res.stdout)
-
             for commit in out:
-                data["commits"].append({"sha": commit["sha"], "author": commit["commit"]["author"]["name"],
+                sha = commit["sha"]
+                if Commit.objects.filter(sha=sha).exists():
+                    commit_obj = Commit.objects.get(sha=sha)
+                else:
+                    commit_obj = Commit.objects.create(
+                        repo_id=repo,
+                        sha=sha,
+                        committer_name=commit["commit"]["committer"]["name"]
+                    )
+                data["commits"].append({"commitId": commit_obj.pk,
+                                        "sha": sha, "author": commit["commit"]["author"]["name"],
                                         "time": commit["commit"]["author"]["date"],
                                         "message": commit["commit"]["message"]})
             response["data"] = data
