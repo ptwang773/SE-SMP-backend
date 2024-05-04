@@ -357,7 +357,7 @@ class modifyTaskContent(View):
         managerId = kwargs.get("managerId", -1)
         startTime = kwargs.get("start_time", "")
         label = kwargs.get("label", None)
-        outline = kwargs.get("outline","")
+        outline = kwargs.get("outline", "")
         y, m, d = startTime.split("-")
         y = int(y)
         m = int(m)
@@ -407,17 +407,22 @@ class completeTask(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-
+        userId = kwargs.get("userId", -1)
+        projectId = kwargs.get("projectId", -1)
         taskId = kwargs.get("taskId", -1)
         if Task.objects.filter(id=taskId).count() == 0:
             response['errcode'] = 1
             response['message'] = "task not exist"
             response['data'] = None
             return JsonResponse(response)
+        if not User.objects.filter(id=userId).exists():
+            response['errcode'] = 2
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
 
         task = Task.objects.get(id=taskId)
-        projectId = task.project_id_id
-        if UserProject.objects.filter(user_id=request.user, project_id=projectId,
+        if UserProject.objects.filter(user_id=userId, project_id=projectId,
                                       role=UserProject.NORMAL).count() > 0:
             response['errcode'] = 3
             response['message'] = "permission denied"
@@ -435,7 +440,7 @@ class completeTask(View):
         for i in subtasks:
             i.status = Task.COMPLETED
             i.save()
-        UserProjectActivity.objects.create(user_id=request.user, project_id=projectId,
+        UserProjectActivity.objects.create(user_id=request.user, project_id=Project.objects.get(id=projectId),
                                            option=UserProjectActivity.FINISH_TASK)
         response['errcode'] = 0
         response['message'] = "success"
