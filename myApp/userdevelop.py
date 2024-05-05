@@ -459,7 +459,7 @@ class GetCommitHistory(View):
                 sha = info["sha"]
                 if not Commit.objects.filter(sha=sha).exists():
                     tmp_commit = Commit.objects.create(repo_id=Repo.objects.get(id=repoId), sha=sha,
-                                                       committer_name=info["author"])
+                                                       committer_name=info["commit"]["author"]["name"])
                 else:
                     tmp_commit = Commit.objects.filter(sha=sha)[0]
                 data.append({"commithash": sha, "author": info["commit"]['author']['name'],
@@ -637,7 +637,7 @@ class GetFileTree(View):
             subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                            cwd=localPath, check=True)
             print(f"https://{token}@github.com/{remotePath}.git")
-            subprocess.run(['git', 'fetch', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
+            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
                            text=True, check=True)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             cmd = ["git", "checkout", f"{branch}"]
@@ -684,10 +684,15 @@ class GetContent(View):
 
         data = ""
         try:
-            localPath = Repo.objects.get(id=repoId).local_path
+            localPath = repo.local_path
+            remotePath = repo.remote_path
             getSemaphore(repoId)
-            cmd = ['git', 'pull', f"https://{token}@github.com/{repo.remote_path}.git"]
-            subprocess.run(cmd, cwd=localPath, check=True)
+            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                           cwd=localPath, check=True)
+            print(f"https://{token}@github.com/{remotePath}.git")
+            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
+                           text=True, check=True)
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             cmd = ["git", "checkout", f"{branch}"]
             subprocess.run(cmd, cwd=localPath, check=True)
             filePath = localPath + path  # os.path.join(localPath, path)
