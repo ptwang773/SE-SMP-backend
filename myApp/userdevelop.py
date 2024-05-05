@@ -559,7 +559,8 @@ class GetPrList(View):
 
         data = []
         try:
-            remotePath = Repo.objects.get(id=repoId).remote_path
+            repo = Repo.objects.get(id=repoId)
+            remotePath = repo.remote_path
             cmd = [
                 "gh", "api",
                 "-H", "Accept: application/vnd.github+json",
@@ -574,6 +575,9 @@ class GetPrList(View):
                 return JsonResponse(response)
             ghInfo = json.loads(result.stdout)
             for it in ghInfo:
+                if not Pr.objects.filter(pr_number=it["number"], repo_id=repo).exists():
+                    Pr.objects.create(pr_number=it["number"], repo_id=repo, applicant_name=it["user"]["login"],
+                                      src_branch=it["head"]["ref"], dst_branch=it["base"]["ref"])
                 data.append({"prId": it["number"],
                              "prIssuer": it["user"]["login"],
                              "prTitle": it["title"],
@@ -1335,6 +1339,9 @@ class AssociatePrTask(View):
         task = Task.objects.get(id=taskId)
         if task.status == Task.COMPLETED:
             return JsonResponse(genResponseStateInfo(response, 8, "task is completed"))
+
+        if Pr_Task.objects.filter(pr_id=pr, task_id=task).exists():
+            return JsonResponse(genResponseStateInfo(response, 9, f"pr {prId} have already associated task {task.id}"))
         Pr_Task.objects.create(pr_id=pr, task_id=task)
 
         return JsonResponse(response)
@@ -1642,7 +1649,12 @@ class GetPrAssociatedTasks(View):
         if not Pr.objects.filter(id=prId).exists():
             return JsonResponse(genResponseStateInfo(response, 1, "pr does not exist"))
         data = []
+        pt_set = set()
         for pt in Pr_Task.objects.filter(pr_id=prId):
+            if (prId, pt.task_id_id) in pt_set:
+                continue
+            else:
+                pt_set.add((prId, pt.task_id_id))
             task = Task.objects.get(id=pt.task_id_id)
             data.append({
                 "taskName": task.name,
