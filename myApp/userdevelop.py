@@ -1629,7 +1629,7 @@ class GetFileCommits(View):
         return JsonResponse(response)
 
 
-class getPrAssociatedTasks(View):
+class GetPrAssociatedTasks(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
         response = {'message': "404 not success", "errcode": -1}
@@ -1653,7 +1653,7 @@ class getPrAssociatedTasks(View):
         return JsonResponse(response)
 
 
-class deletePrTask(View):
+class DeletePrTask(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
         response = {'message': "404 not success", "errcode": -1}
