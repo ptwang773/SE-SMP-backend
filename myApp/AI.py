@@ -55,7 +55,11 @@ class UnitTest(View):
             return JsonResponse(response)
 
         text = kwargs.get("code")
-        model = openai.ChatCompletion.create(
+        client = OpenAI(
+            # This is the default and can be omitted
+            api_key=api_key,
+        )
+        chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -65,7 +69,7 @@ class UnitTest(View):
 
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = model["choices"][0]["message"]["content"]
+        response['data'] = chat_completion["choices"][0]["message"]["content"]
         return JsonResponse(response)
 
 
@@ -78,7 +82,11 @@ class CodeReview(View):
             return JsonResponse(response)
 
         text = kwargs.get("code")
-        model = openai.ChatCompletion.create(
+        client = OpenAI(
+            # This is the default and can be omitted
+            api_key=api_key,
+        )
+        chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -88,7 +96,7 @@ class CodeReview(View):
 
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = model["choices"][0]["message"]["content"]
+        response['data'] = chat_completion["choices"][0]["message"]["content"]
         return JsonResponse(response)
 
 
@@ -187,8 +195,11 @@ class GenerateLabel(View):
         if not Task.objects.filter(taskId=taskId).exists():
             return JsonResponse(genResponseStateInfo(response, 1, "task not exists"))
         task = Task.objects.get(id=taskId)
-        model = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+
+        client = OpenAI(
+            api_key=api_key,
+        )
+        chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user",
@@ -196,10 +207,11 @@ class GenerateLabel(View):
                             "\n可以选择的标签为：bug,documentation,duplicate,enhancement,good first issue,help wanted,"
                             "invalid,question,wontifx " +
                             ", speak English"},
-            ]
+            ],
+            model = "gpt-3.5-turbo",
         )
 
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = model["choices"][0]["message"]["content"]
+        response['data'] = chat_completion["choices"][0]["message"]["content"]
         return JsonResponse(response)
