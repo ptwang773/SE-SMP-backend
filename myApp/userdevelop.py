@@ -1136,7 +1136,6 @@ class GetCommitDetails(View):
                            text=True, check=True)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             output = result.stdout
-            localPath = repo.local_path
             data = json.loads(output)
             commit = {}
 
@@ -1326,7 +1325,7 @@ class AssociatePrTask(View):
         if Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
             pr = Pr.objects.get(pr_number=prId, repo_id=repo)
         else:
-            return JsonResponse(genResponseStateInfo(response, 6, "no sucn pr in repo"))
+            return JsonResponse(genResponseStateInfo(response, 6, f"no sucn pr{prId} in repo{repoId}"))
 
         if pr.applicant_id != user and pr.applicant_id is not None:
             return JsonResponse(genResponseStateInfo(response, 9, "you can not associate"))
@@ -1535,7 +1534,7 @@ class GetPrDetails(View):
             if not Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
                 pr = Pr.objects.create(repo_id=repo, src_branch=jsonOutput["head"]["label"].split(':')[1],
                                        dst_branch=jsonOutput["base"]["label"].split(':')[1],
-                                       pr_number=jsonOutput["number"], applicant_name=jsonOutput["user"]["login"])
+                                       pr_number=prId, applicant_name=jsonOutput["user"]["login"])
             else:
                 pr = Pr.objects.get(repo_id=repo, pr_number=prId)
             pr.pr_status = getPrStatus(jsonOutput["state"], jsonOutput["merged"])
