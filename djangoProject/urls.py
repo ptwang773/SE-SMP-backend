@@ -72,6 +72,8 @@ urlpatterns = [
     path('api/develop/getPrDetails', userdevelop.GetPrDetails.as_view()),
     path('api/develop/associatePrTask', userdevelop.AssociatePrTask.as_view()),
     path('api/develop/showCanAssociateTasks', userdevelop.ShowCanAssociateTasks.as_view()),
+    path('api/develop/getPrAssociatedTasks', userdevelop.GetPrAssociatedTasks.as_view()),
+    path('api/develop/deletePrTask', userdevelop.DeletePrTask.as_view()),
 
     path('api/develop/getFileCommits', userdevelop.GetFileCommits.as_view()),
 

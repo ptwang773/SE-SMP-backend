@@ -1626,3 +1626,81 @@ class GetFileCommits(View):
         response["data"] = data
         releaseSemaphore(repoId)
         return JsonResponse(response)
+
+
+class GetPrAssociatedTasks(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get pr associated tasks ok")
+        prId = kwargs.get('prId')
+
+        if not Pr.objects.filter(id=prId).exists():
+            return JsonResponse(genResponseStateInfo(response, 1, "pr does not exist"))
+        data = []
+        for pt in Pr_Task.objects.filter(pr_id=prId):
+            task = Task.objects.get(id=pt.task_id)
+            data.append({
+                "taskName": task.name,
+                "taskId": task.id
+            })
+        response["data"] = data
+        return JsonResponse(response)
+
+
+class DeletePrTask(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "delete pr associated task ok")
+
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        prId = kwargs.get('prId')
+        taskId = kwargs.get('taskId')
+
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        user = User.objects.get(id=userId)
+        if userProject is None or user is None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+
+        if Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
+            pr = Pr.objects.get(pr_number=prId, repo_id=repo)
+        else:
+            return JsonResponse(genResponseStateInfo(response, 6, "no such pr in repo"))
+
+        if pr.applicant_id != user and pr.applicant_id is not None:
+            return JsonResponse(genResponseStateInfo(response, 9, "you can not delete associate"))
+
+        if not Task.objects.filter(id=taskId, project_id=project).exists():
+            return JsonResponse(genResponseStateInfo(response, 7, "no such task in project"))
+        task = Task.objects.get(id=taskId)
+        if task.status == Task.COMPLETED:
+            return JsonResponse(genResponseStateInfo(response, 8, "task is completed"))
+
+        try:
+            prTask = Pr_Task.objects.get(pr_id=prId, task_id=taskId)
+            prTask.delete()
+        except Exception as e:
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+
+        return JsonResponse(response)
