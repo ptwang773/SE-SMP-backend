@@ -1,6 +1,7 @@
 import subprocess
 
 import openai
+import requests
 from openai import OpenAI
 import os
 from django.http import JsonResponse
@@ -46,6 +47,61 @@ text = """class getEmail(View):
 # )
 # print(model)
 
+def request_trash(messages):
+    url = 'https://gtapi.xiaoerchaoren.com:8932/v1/chat/completions'
+
+    headers = {
+
+        'Content-Type': 'application/json',
+
+        'Authorization': 'Bearer sk-i0ipf6VCzrMI2F1o0cD27a1f24654794A6C2A21e8d617978'  # 输入网站发给你的转发key
+
+    }
+
+    data = {
+
+        "model": "gpt-3.5-turbo",
+
+        "messages": messages,
+
+        "stream": False
+
+    }
+
+    response = requests.post(url, json=data, headers=headers)
+
+    return response.json()
+
+
+def request_cloudflare(messages):
+    ACCOUNT_TAG = "3cec0af6cdabce0f9fafcd413f9370b4"
+    GATEWAY = "openai"
+    url = f"https://gateway.ai.cloudflare.com/v1/{ACCOUNT_TAG}/{GATEWAY}/openai/chat/completions"
+    # 请求头部
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    # 请求数据
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": messages
+    }
+
+    # 发送POST请求
+    response = requests.post(url, headers=headers, json=data)
+
+    # 处理响应
+    if response.status_code == 200:
+        response_data = response.json()
+        # 在这里处理响应数据
+        print(response_data)
+        return response.json()
+    else:
+        print(f"Error: {response.status_code}")
+
+
 class UnitTest(View):
     def post(self, request):
         response = {'errcode': 0, 'message': "404 not success"}
@@ -55,21 +111,14 @@ class UnitTest(View):
             return JsonResponse(response)
 
         text = kwargs.get("code")
-        client = OpenAI(
-            # This is the default and can be omitted
-            api_key=api_key,
-        )
-        chat_completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "请针对以下代码给我生成单元测试代码," + text + ", speak English"},
-            ]
-        )
 
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "请针对以下代码给我生成单元测试代码," + text + ", speak English"}]
+        chat = request_trash(messages)
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = chat_completion["choices"][0]["message"]["content"]
+        response['data'] = chat["choices"][0]["message"]["content"]
         return JsonResponse(response)
 
 
@@ -82,21 +131,14 @@ class CodeReview(View):
             return JsonResponse(response)
 
         text = kwargs.get("code")
-        client = OpenAI(
-            # This is the default and can be omitted
-            api_key=api_key,
-        )
-        chat_completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "请针对以下代码进行代码分析," + text + ", speak English"},
-            ]
-        )
-
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "请针对以下代码进行代码分析," + text + ", speak English"},
+        ]
+        chat = request_trash(messages)
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = chat_completion["choices"][0]["message"]["content"]
+        response['data'] = chat["choices"][0]["message"]["content"]
         return JsonResponse(response)
 
 
@@ -143,7 +185,7 @@ class GenerateCommitMessage(View):
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
                     content = file.get('content')
-                    print("$$$$$$$$$$ modify file ", path,content)
+                    print("$$$$$$$$$$ modify file ", path, content)
                     try:
                         with open(path, 'w') as f:
                             f.write(content)
@@ -151,9 +193,9 @@ class GenerateCommitMessage(View):
                         print(f"Failed to overwrite file {path}: {e}")
                 diff = subprocess.run(["git", "diff"], cwd=localPath, capture_output=True,
                                       text=True, check=True)
-                print("diff is :",diff.stdout)
+                print("diff is :", diff.stdout)
                 if diff.stdout is None:
-                    return JsonResponse(genResponseStateInfo(response,7,"you have not modify file"))
+                    return JsonResponse(genResponseStateInfo(response, 7, "you have not modify file"))
                 subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=localPath, check=True)
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -165,21 +207,15 @@ class GenerateCommitMessage(View):
             subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo.local_path, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
-        client = OpenAI(
-            # This is the default and can be omitted
-            api_key=api_key,
-        )
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "请针对以下git diff内容,为此次commit生成一些合适的message," +
-                                            diff.stdout + ", speak English"},
-            ],
-            model="gpt-3.5-turbo",
-        )
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "请针对以下git diff内容,为此次commit生成一些合适的message," +
+                                        diff.stdout + ", speak English"},
+        ]
+        chat = request_trash(messages)
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = chat_completion["choices"][0]["message"]["content"]
+        response['data'] = chat["choices"][0]["message"]["content"]
         return JsonResponse(response)
 
 
@@ -195,23 +231,16 @@ class GenerateLabel(View):
         if not Task.objects.filter(taskId=taskId).exists():
             return JsonResponse(genResponseStateInfo(response, 1, "task not exists"))
         task = Task.objects.get(id=taskId)
-
-        client = OpenAI(
-            api_key=api_key,
-        )
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user",
-                 "content": "请根据以下描述,从下列标签中选择若干个合适的作为总结，描述为：" + task.outline +
-                            "\n可以选择的标签为：bug,documentation,duplicate,enhancement,good first issue,help wanted,"
-                            "invalid,question,wontifx " +
-                            ", speak English"},
-            ],
-            model = "gpt-3.5-turbo",
-        )
-
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user",
+             "content": "请根据以下描述,从下列标签中选择若干个合适的作为总结，描述为：" + task.outline +
+                        "\n可以选择的标签为：bug,documentation,duplicate,enhancement,good first issue,help wanted,"
+                        "invalid,question,wontifx " +
+                        ", speak English"},
+        ]
+        chat = request_trash(messages)
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = chat_completion["choices"][0]["message"]["content"]
+        response['data'] = chat["choices"][0]["message"]["content"]
         return JsonResponse(response)

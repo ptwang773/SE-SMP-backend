@@ -274,7 +274,6 @@ class UserBindRepo(View):
                     print(f"https://{token}@github.com/{repoRemotePath}.git")
                     result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
                                              f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
-                    print("out is ", result.stdout)
                     print("err is ", result.stderr)
                     if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                         response["message"] = result.stderr
@@ -794,7 +793,6 @@ class GitCommit(View):
 
                 result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
                                         text=True, check=True)
-                print("out is ", result.stdout)
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath, check=True)
@@ -989,7 +987,6 @@ class GitBranchCommit(View):
 
                 result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
                                         text=True)
-                print("out is ", result.stdout)
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     subprocess.run(["git", "branch", "-D", branch], cwd=localPath)
@@ -1629,7 +1626,8 @@ class GetFileCommits(View):
             print(fuc.commit_sha)
         data = []
         for key in commits.keys():
-            data.append({"userId": key, "commits": commits[key], "count": len(commits[key])})
+            data.append({"userId": key, "userName": User.objects.get(id=key).name, "commits": commits[key],
+                         "count": len(commits[key])})
         response["data"] = data
         releaseSemaphore(repoId)
         return JsonResponse(response)
