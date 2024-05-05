@@ -1643,7 +1643,7 @@ class GetPrAssociatedTasks(View):
             return JsonResponse(genResponseStateInfo(response, 1, "pr does not exist"))
         data = []
         for pt in Pr_Task.objects.filter(pr_id=prId):
-            task = Task.objects.get(id=pt.task_id)
+            task = Task.objects.get(id=pt.task_id_id)
             data.append({
                 "taskName": task.name,
                 "taskId": task.id
