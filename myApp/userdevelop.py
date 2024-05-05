@@ -640,7 +640,7 @@ class GetFileTree(View):
             subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                            cwd=localPath, check=True)
             print(f"https://{token}@github.com/{remotePath}.git")
-            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
+            subprocess.run(['git', 'pull','--force', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
                            text=True, check=True)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             cmd = ["git", "checkout", f"{branch}"]
@@ -650,6 +650,13 @@ class GetFileTree(View):
                 data.append(item)
             response["data"] = data
             releaseSemaphore(repoId)
+        except subprocess.CalledProcessError as e:
+                # 打印错误信息
+            print("Error:", e.stderr)
+                        # 删除临时远程仓库
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
+                                # 返回错误响应
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))  
         except Exception as e:
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
