@@ -631,11 +631,15 @@ class GetFileTree(View):
 
         data = []
         try:
-            localPath = Repo.objects.get(id=repoId).local_path
+            localPath = repo.local_path
+            remotePath = repo.remote_path
             getSemaphore(repoId)
-            cmd = ['git', 'pull', f"https://{token}@github.com/{repo.remote_path}.git"]
-            result = subprocess.run(cmd, cwd=localPath, check=True, capture_output=True, text=True)
-            print("err is :", result.stderr)
+            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                           cwd=localPath, check=True)
+            print(f"https://{token}@github.com/{remotePath}.git")
+            subprocess.run(['git', 'fetch', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
+                           text=True, check=True)
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             cmd = ["git", "checkout", f"{branch}"]
             subprocess.run(cmd, cwd=localPath)
             r = _getFileTree(localPath)
