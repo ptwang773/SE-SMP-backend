@@ -1273,13 +1273,13 @@ class showActivity(View):
         users = {}
         for item in tmp:
             if not item.user_id_id in users:
-                users[item.user_id_id] = {"task": 0, "code": 0}
+                users[item.user_id_id] = {"task": 0, "code": 0,"name":item.user_id.name}
             if item.option == UserProjectActivity.COMMIT_CODE:
                 users[item.user_id_id]["code"] += 1
             else:
                 users[item.user_id_id]["task"] += 1
         data = []
         for user in users:
-            data.append({"userId": user, "task": users[user]["task"], "code": users[user]["code"]})
+            data.append({"userName":users[user]["name"],"userId": user, "task": users[user]["task"], "code": users[user]["code"]})
         response['data'] = data
         return JsonResponse(response)
