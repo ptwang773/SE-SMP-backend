@@ -402,7 +402,7 @@ class modifyTaskContent(View):
 
 class completeTask(View):
     def post(self, request):
-        response = {'errcode': 1, 'message': "404 not success"}
+        response = {'errcode': -1, 'message': "404 not success"}
         try:
             kwargs: dict = json.loads(request.body)
         except Exception:

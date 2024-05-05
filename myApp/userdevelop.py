@@ -630,8 +630,8 @@ class GetFileTree(View):
             return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
 
         data = []
+        localPath = repo.local_path
         try:
-            localPath = repo.local_path
             remotePath = repo.remote_path
             getSemaphore(repoId)
             subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
@@ -648,6 +648,7 @@ class GetFileTree(View):
             response["data"] = data
             releaseSemaphore(repoId)
         except Exception as e:
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
@@ -683,8 +684,8 @@ class GetContent(View):
             return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
 
         data = ""
+        localPath = repo.local_path
         try:
-            localPath = repo.local_path
             remotePath = repo.remote_path
             getSemaphore(repoId)
             subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
@@ -705,6 +706,7 @@ class GetContent(View):
             response["data"] = data
             releaseSemaphore(repoId)
         except Exception as e:
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
@@ -759,8 +761,8 @@ class GitCommit(View):
 
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        localPath = repo.local_path
         try:
-            localPath = repo.local_path
             remotePath = repo.remote_path
             print(localPath)
             print("is git :", is_independent_git_repository(localPath))
@@ -772,7 +774,7 @@ class GitCommit(View):
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
-                subprocess.run(['git', 'pull', f'{branch}'], cwd=localPath)
+                subprocess.run(['git', 'pull', 'tmp', f'{branch}'], cwd=localPath)
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
                     print(path)
@@ -836,6 +838,7 @@ class GitCommit(View):
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
@@ -951,8 +954,8 @@ class GitBranchCommit(View):
 
         if repo == None:
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        localPath = repo.local_path
         try:
-            localPath = repo.local_path
             remotePath = repo.remote_path
             getSemaphore(repoId)
             if token is None or not validate_token(token):
@@ -1031,6 +1034,7 @@ class GitBranchCommit(View):
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
@@ -1128,7 +1132,7 @@ class GetCommitDetails(View):
             subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                            cwd=localPath, check=True)
             print(f"https://{token}@github.com/{remotePath}.git")
-            subprocess.run(['git', 'fetch', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
+            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
                            text=True, check=True)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             output = result.stdout
