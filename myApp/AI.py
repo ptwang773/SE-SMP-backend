@@ -11,7 +11,7 @@ import datetime
 
 from myApp.models import *
 from myApp.userdevelop import genResponseStateInfo, isUserInProject, isProjectExists, is_independent_git_repository, \
-    getSemaphore, releaseSemaphore, genUnexpectedlyErrorInfo, validate_token
+     genUnexpectedlyErrorInfo, validate_token
 
 # openai.organization = "org-fBoqj45hvJisAEGMR5cvPnDS"
 api_key = "sk-proj-YjxEM9CWA8GhasSyqtoGT3BlbkFJ1kL8VTIIZ5GxZCBWH3Tu"
@@ -175,7 +175,6 @@ class GenerateCommitMessage(View):
             print("is git :", is_independent_git_repository(localPath))
             if not is_independent_git_repository(localPath):
                 return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
-            getSemaphore(repoId)
             if validate_token(token):
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
@@ -200,12 +199,9 @@ class GenerateCommitMessage(View):
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-                releaseSemaphore(repoId)
             else:
-                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
-            releaseSemaphore(repoId)
             subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo.local_path, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
