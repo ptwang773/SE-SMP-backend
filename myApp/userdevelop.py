@@ -177,10 +177,11 @@ class CheckRefreshRepo(View):
             local_result = subprocess.run(["git", "branch"], capture_output=True, text=True, cwd=localPath, check=True)
             local_branches = []
             if local_result.returncode == 0:
-                local_branches = [branch.strip()[2:] for branch in local_result.stdout.split('\n') if
+                local_branches = [branch.strip().split(' ')[-1] for branch in local_result.stdout.split('\n') if
                                   branch.strip() != ""]
             new_branches = set(remote_branches) - set(local_branches)
             if new_branches:
+                print(new_branches)
                 response["message"] = "check ok & have some new branches"
                 response["needRefresh"] = 1
                 releaseSemaphore(repoId)
@@ -249,31 +250,19 @@ class RefreshRepo(View):
             return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
         localPath = repo.local_path
         try:
+            shutil.rmtree(localPath)
+            # 重新克隆远程仓库
             remotePath = repo.remote_path
-            getSemaphore(repoId)
-            remote_command = [
-                "gh", "api",
-                "-H", "Accept: application/vnd.github.v3+json",
-                "-H", f"Authorization: token {token}",
-                f"/repos/{remotePath}/branches"
-            ]
-            remote_result = subprocess.run(remote_command, capture_output=True, text=True, cwd=localPath, check=True)
-            remote_branches = []
-            if remote_result.returncode == 0:
-                remote_data = json.loads(remote_result.stdout)
-                if isinstance(remote_data, list):
-                    remote_branches = [branch['name'] for branch in remote_data]
-
-            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                           cwd=localPath)
-            for branch in remote_branches:
-                subprocess.run(['git', 'pull', 'tmp', f'{branch}'], cwd=localPath)
-            releaseSemaphore(repoId)
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
-            return JsonResponse(response)
+            result = subprocess.run(
+                ["git", "clone", '--mirror', f"https://{token}@github.com/{remotePath}.git", localPath],
+                capture_output=True, text=True, check=True)
+            subprocess.run(['git', 'remote', 'rm', 'origin'], cwd=localPath)
+            if result.returncode == 0:
+                return JsonResponse(response)
+            else:
+                return JsonResponse(genResponseStateInfo(response, 5, "failed to refresh repository"))
         except Exception as e:
             releaseSemaphore(repoId)
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
 
@@ -507,6 +496,7 @@ class UserBindRepo(View):
                     print(f"https://{token}@github.com/{repoRemotePath}.git")
                     result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
                                              f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
+                    subprocess.run(['git', 'remote', 'rm', 'orgin'], cwd=localPath)
                     print("err is ", result.stderr)
                     if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                         response["message"] = result.stderr

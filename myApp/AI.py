@@ -228,15 +228,11 @@ class GenerateLabel(View):
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-
-        taskId = kwargs.get('taskId')
-        if not Task.objects.filter(taskId=taskId).exists():
-            return JsonResponse(genResponseStateInfo(response, 1, "task not exists"))
-        task = Task.objects.get(id=taskId)
+        outline = kwargs.get('outline')
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user",
-             "content": "请根据以下描述,从下列标签中选择若干个合适的作为总结，描述为：" + task.outline +
+             "content": "请根据以下描述,从下列标签中选择若干个合适的作为总结，描述为：" + outline +
                         "\n可以选择的标签为：bug,documentation,duplicate,enhancement,good first issue,help wanted,"
                         "invalid,question,wontifx " +
                         ", speak English"},
