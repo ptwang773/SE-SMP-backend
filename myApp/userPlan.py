@@ -313,7 +313,8 @@ class showTaskList(View):
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
-                           "complete_time": j.complete_time, "subTaskLabel": getLabelName(j.task_label)}
+                           "complete_time": j.complete_time, "subTaskLabel": getLabelName(j.task_label),
+                           "subTaskOutline": j.outline}
 
                 if j.status != Task.COMPLETED:
                     if cur_time > j.deadline:
@@ -1273,13 +1274,14 @@ class showActivity(View):
         users = {}
         for item in tmp:
             if not item.user_id_id in users:
-                users[item.user_id_id] = {"task": 0, "code": 0,"name":item.user_id.name}
+                users[item.user_id_id] = {"task": 0, "code": 0, "name": item.user_id.name}
             if item.option == UserProjectActivity.COMMIT_CODE:
                 users[item.user_id_id]["code"] += 1
             else:
                 users[item.user_id_id]["task"] += 1
         data = []
         for user in users:
-            data.append({"userName":users[user]["name"],"userId": user, "task": users[user]["task"], "code": users[user]["code"]})
+            data.append({"userName": users[user]["name"], "userId": user, "task": users[user]["task"],
+                         "code": users[user]["code"]})
         response['data'] = data
         return JsonResponse(response)

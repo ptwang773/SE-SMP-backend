@@ -1532,7 +1532,7 @@ class AssociatePrTask(View):
             return JsonResponse(genResponseStateInfo(response, 6, f"no sucn pr{prId} in repo{repoId}"))
 
         if pr.applicant_id != user and pr.applicant_id is not None:
-            return JsonResponse(genResponseStateInfo(response, 9, "you can not associate"))
+            return JsonResponse(genResponseStateInfo(response, 10, "you can not associate"))
 
         if not Task.objects.filter(id=taskId, project_id=project).exists():
             return JsonResponse(genResponseStateInfo(response, 7, "no such task in project"))
