@@ -450,6 +450,7 @@ class GetCommitHistory(View):
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             flag, response = checkCMDError(result.stderr, 5, response)
             if flag:
+                releaseSemaphore(repoId)
                 print("err is ", result.stderr)
                 return JsonResponse(response)
             releaseSemaphore(repoId)
@@ -651,6 +652,7 @@ class GetFileTree(View):
             response["data"] = data
             releaseSemaphore(repoId)
         except subprocess.CalledProcessError as e:
+            releaseSemaphore(repoId)
                 # 打印错误信息
             print("Error:", e.stderr)
                         # 删除临时远程仓库
@@ -658,6 +660,7 @@ class GetFileTree(View):
                                 # 返回错误响应
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))  
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -716,6 +719,7 @@ class GetContent(View):
             response["data"] = data
             releaseSemaphore(repoId)
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -845,8 +849,10 @@ class GitCommit(View):
                 response['errcode'] = errcode
                 releaseSemaphore(repoId)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
@@ -912,6 +918,7 @@ class GitPr(View):
                     print(result.stderr)
                     response["message"] = json.loads(result.stdout)["errors"][0]["message"]
                     response["errcode"] = 7
+                    releaseSemaphore(repoId)
                     return JsonResponse(response)
                 output = json.loads(result.stdout)
                 print("------- pr number:", output["number"])
@@ -924,8 +931,10 @@ class GitPr(View):
                 releaseSemaphore(repoId)
                 os.system("rm -f " + log_path)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
 
@@ -1040,8 +1049,10 @@ class GitBranchCommit(View):
                 releaseSemaphore(repoId)
                 os.system("rm -f " + log_path)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
         return JsonResponse(response)
