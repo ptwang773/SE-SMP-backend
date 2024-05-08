@@ -770,6 +770,7 @@ class GetFileTree(View):
                 data.append(item)
             response["data"] = data
             releaseSemaphore(repoId)
+            return JsonResponse(response)
         except Exception as e:
             releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
