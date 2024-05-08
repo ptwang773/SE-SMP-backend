@@ -80,6 +80,58 @@ def checkCMDError(err, errcode, response):
         return False, response
 
 
+def needRefresh(token, repo):
+    try:
+        remotePath = repo.remote_path
+        localPath = repo.local_path
+        remote_command = [
+            "gh", "api",
+            "-H", "Accept: application/vnd.github.v3+json",
+            "-H", f"Authorization: token {token}",
+            f"/repos/{remotePath}/branches"
+        ]
+        remote_result = subprocess.run(remote_command, capture_output=True, text=True, cwd=localPath, check=True)
+        remote_branches = []
+        if remote_result.returncode == 0:
+            remote_data = json.loads(remote_result.stdout)
+            if isinstance(remote_data, list):
+                remote_branches = [branch['name'] for branch in remote_data]
+        local_result = subprocess.run(["git", "branch"], capture_output=True, text=True, cwd=localPath, check=True)
+        local_branches = []
+        if local_result.returncode == 0:
+            local_branches = [branch.strip()[2:] for branch in local_result.stdout.split('\n') if
+                              branch.strip() != ""]
+        new_branches = set(remote_branches) - set(local_branches)
+        if new_branches:
+            return True
+        for branch in local_branches:
+            remote_commit = None
+            remote_branch_command = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github.v3+json",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/commits/{branch}"
+            ]
+            remote_branch_result = subprocess.run(remote_branch_command, capture_output=True, text=True,
+                                                  cwd=localPath, check=True)
+            if remote_branch_result.returncode == 0:
+                remote_data = json.loads(remote_branch_result.stdout)
+                if 'sha' in remote_data:
+                    remote_commit = remote_data['sha']
+            local_commit_result = subprocess.run(["git", "rev-parse", branch], capture_output=True, text=True,
+                                                 cwd=localPath, check=True)
+            local_commit = None
+            if local_commit_result.returncode == 0:
+                local_commit = local_commit_result.stdout.strip()
+            if remote_commit and local_commit and remote_commit != local_commit:
+                return True
+            else:
+                return True
+        return False
+    except Exception as e:
+        return True, e
+
+
 class CheckRefreshRepo(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -157,18 +209,72 @@ class CheckRefreshRepo(View):
                     response["needRefresh"] = 1
                     releaseSemaphore(repoId)
                     return JsonResponse(response)
+                elif remote_commit and local_commit and remote_commit == local_commit:
+                    response["needRefresh"] = 0
+                    releaseSemaphore(repoId)
+                    return JsonResponse(response)
                 else:
                     releaseSemaphore(repoId)
                     return JsonResponse(genResponseStateInfo(response, 5, "wrong to check"))
-            response["needRefresh"] = 0
-            releaseSemaphore(repoId)
-            return JsonResponse(response)
         except Exception as e:
             releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
 
-# class RefreshRepo(View):
+class RefreshRepo(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response = {}
+        genResponseStateInfo(response, 0, "repo refresh ok")
+        userId = str(kwargs.get('userId'))
+        projectId = str(kwargs.get('projectId'))
+        repoId = str(kwargs.get('repoId'))
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None or not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
+        localPath = repo.local_path
+        try:
+            remotePath = repo.remote_path
+            getSemaphore(repoId)
+            remote_command = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github.v3+json",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/branches"
+            ]
+            remote_result = subprocess.run(remote_command, capture_output=True, text=True, cwd=localPath, check=True)
+            remote_branches = []
+            if remote_result.returncode == 0:
+                remote_data = json.loads(remote_result.stdout)
+                if isinstance(remote_data, list):
+                    remote_branches = [branch['name'] for branch in remote_data]
+
+            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                           cwd=localPath)
+            for branch in remote_branches:
+                subprocess.run(['git', 'pull', 'tmp', f'{branch}'], cwd=localPath)
+            releaseSemaphore(repoId)
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+            return JsonResponse(response)
+        except Exception as e:
+            releaseSemaphore(repoId)
+            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
 
 class GetProjectName(View):
@@ -888,7 +994,6 @@ class GitCommit(View):
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
-                subprocess.run(['git', 'pull', 'tmp', f'{branch}'], cwd=localPath)
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
                     print(path)
@@ -1073,6 +1178,7 @@ class GitBranchCommit(View):
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
+
                 result = subprocess.run(["git", "checkout", "-b", branch], cwd=localPath, stderr=subprocess.PIPE,
                                         text=True)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
@@ -1243,12 +1349,6 @@ class GetCommitDetails(View):
             result = subprocess.run(command, capture_output=True, text=True, check=True)
             remotePath = repo.remote_path
             localPath = repo.local_path
-            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                           cwd=localPath, check=True)
-            print(f"https://{token}@github.com/{remotePath}.git")
-            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
-                           text=True, check=True)
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             output = result.stdout
             data = json.loads(output)
             commit = {}
