@@ -80,6 +80,97 @@ def checkCMDError(err, errcode, response):
         return False, response
 
 
+class CheckRefreshRepo(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response = {}
+        genResponseStateInfo(response, 0, "check repo refresh ok")
+        userId = str(kwargs.get('userId'))
+        projectId = str(kwargs.get('projectId'))
+        repoId = str(kwargs.get('repoId'))
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        if userProject == None or not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        token = User.objects.get(id=userId).token
+        if token is None or validate_token(token) == False:
+            return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
+        try:
+            remotePath = repo.remote_path
+            localPath = repo.local_path
+            getSemaphore(repoId)
+            remote_command = [
+                "gh", "api",
+                "-H", "Accept: application/vnd.github.v3+json",
+                "-H", f"Authorization: token {token}",
+                f"/repos/{remotePath}/branches"
+            ]
+            remote_result = subprocess.run(remote_command, capture_output=True, text=True, cwd=localPath, check=True)
+            remote_branches = []
+            if remote_result.returncode == 0:
+                remote_data = json.loads(remote_result.stdout)
+                if isinstance(remote_data, list):
+                    remote_branches = [branch['name'] for branch in remote_data]
+            local_result = subprocess.run(["git", "branch"], capture_output=True, text=True, cwd=localPath, check=True)
+            local_branches = []
+            if local_result.returncode == 0:
+                local_branches = [branch.strip()[2:] for branch in local_result.stdout.split('\n') if
+                                  branch.strip() != ""]
+            new_branches = set(remote_branches) - set(local_branches)
+            if new_branches:
+                response["message"] = "check ok & have some new branches"
+                response["needRefresh"] = 1
+                releaseSemaphore(repoId)
+                return JsonResponse(response)
+            for branch in local_branches:
+                remote_commit = None
+                remote_branch_command = [
+                    "gh", "api",
+                    "-H", "Accept: application/vnd.github.v3+json",
+                    "-H", f"Authorization: token {token}",
+                    f"/repos/{remotePath}/commits/{branch}"
+                ]
+                remote_branch_result = subprocess.run(remote_branch_command, capture_output=True, text=True,
+                                                      cwd=localPath, check=True)
+                if remote_branch_result.returncode == 0:
+                    remote_data = json.loads(remote_branch_result.stdout)
+                    if 'sha' in remote_data:
+                        remote_commit = remote_data['sha']
+                local_commit_result = subprocess.run(["git", "rev-parse", branch], capture_output=True, text=True,
+                                                     cwd=localPath, check=True)
+                local_commit = None
+                if local_commit_result.returncode == 0:
+                    local_commit = local_commit_result.stdout.strip()
+                if remote_commit and local_commit and remote_commit != local_commit:
+                    response["message"] = f"check ok & {branch} have some new commits"
+                    response["needRefresh"] = 1
+                    releaseSemaphore(repoId)
+                    return JsonResponse(response)
+                else:
+                    releaseSemaphore(repoId)
+                    return JsonResponse(genResponseStateInfo(response, 5, "wrong to check"))
+            response["needRefresh"] = 0
+            releaseSemaphore(repoId)
+            return JsonResponse(response)
+        except Exception as e:
+            releaseSemaphore(repoId)
+            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+
+
+# class RefreshRepo(View):
+
+
 class GetProjectName(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -150,6 +241,36 @@ class GetBindRepos(View):
         return JsonResponse(response)
 
 
+def getDir(nowPath, owner, repo, branch, token, data):
+    # print(nowPath)
+    command = [
+        "gh", "api",
+        "-H", "Accept: application/vnd.github+json",
+        "-H", "X-GitHub-Api-Version: 2022-11-28",
+        "-H", f"Authorization: token {token}",
+        f"/repos/{owner}/{repo}/contents/{nowPath}?ref={branch}",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=True)
+    if result.returncode == 0:
+        files = json.loads(result.stdout)
+        for file in files:
+            if file["type"] == "dir":
+                data.append({"name": file["name"], "children": []})
+
+                if nowPath == "":
+                    nextPath = str(file["name"])
+                else:
+                    nextPath = nowPath + "/" + str(file["name"])
+                # print("****" + nextPath)
+                flag = getDir(nextPath, owner, repo, branch, token, data[-1]["children"])
+                if flag == -1:
+                    return -1
+            else:
+                data.append({"name": file['name']})
+    else:
+        return -1
+
+
 class GetRepoAllFiles(View):
     def post(self, request):
         # 检查权限
@@ -160,11 +281,11 @@ class GetRepoAllFiles(View):
         except Exception:
             return JsonResponse(response)
         response = {}
-        genResponseStateInfo(response, 0, "get repo all files ok")
+        genResponseStateInfo(response, 0, "get file tree ok")
         userId = str(kwargs.get('userId'))
         projectId = str(kwargs.get('projectId'))
         repoId = str(kwargs.get('repoId'))
-        dirPath = str(kwargs.get('dirPath'))
+        branch = str(kwargs.get('branch'))
         project = isProjectExists(projectId)
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
@@ -176,18 +297,24 @@ class GetRepoAllFiles(View):
         repo = Repo.objects.get(pk=repoId)
         owner = str.split(repo.remote_path, "/")[0]
         repo = str.split(repo.remote_path, "/")[1]
+
+        user = User.objects.get(id=userId)
+        token = user.token
         print(owner, repo)
-        url = f"https://api.github.com/repos/{owner}/{repo}/contents/{dirPath}"
-        resp = requests.get(url)
         data = []
-        if resp.status_code == 200:
-            files = resp.json()
-            for file in files:
-                data.append({"name": file['name'], "type": file['type']})
-            response["data"] = {"files": data}
+        try:
+            flag = getDir("", owner, repo, branch, token, data)
+        except subprocess.CalledProcessError as e:
+            print("命令执行失败:", e)
+            print("错误输出:", e.stderr)
+            response["message"] = str(e)
+            response["errcode"] = -1
+            releaseSemaphore(repoId)
             return JsonResponse(response)
-        else:
-            return JsonResponse(genResponseStateInfo(response, 4, "get repo all files fail, maybe path is wrong"))
+        if flag == -1:
+            return JsonResponse(genResponseStateInfo(response, 4, "wrong in getDir"))
+        response["data"] = data
+        return JsonResponse(response)
 
 
 class GetRepoFile(View):
@@ -631,18 +758,10 @@ class GetFileTree(View):
         token = User.objects.get(id=userId).token
         if token is None or validate_token(token) == False:
             return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
-
         data = []
         localPath = repo.local_path
         try:
-            remotePath = repo.remote_path
             getSemaphore(repoId)
-            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                           cwd=localPath, check=True)
-            print(f"https://{token}@github.com/{remotePath}.git")
-            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
-                           text=True, check=True)
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             cmd = ["git", "checkout", f"{branch}"]
             subprocess.run(cmd, cwd=localPath)
             r = _getFileTree(localPath)
@@ -650,10 +769,10 @@ class GetFileTree(View):
                 data.append(item)
             response["data"] = data
             releaseSemaphore(repoId)
+            return JsonResponse(response)
         except Exception as e:
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
+            releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
-        return JsonResponse(response)
 
 
 class GetContent(View):
@@ -685,18 +804,9 @@ class GetContent(View):
         token = User.objects.get(id=userId).token
         if token is None or validate_token(token) == False:
             return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
-
-        data = ""
         localPath = repo.local_path
         try:
-            remotePath = repo.remote_path
             getSemaphore(repoId)
-            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                           cwd=localPath, check=True)
-            print(f"https://{token}@github.com/{remotePath}.git")
-            subprocess.run(['git', 'pull', 'tmp', f'{branch}'], stderr=subprocess.PIPE, cwd=localPath,
-                           text=True, check=True)
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             cmd = ["git", "checkout", f"{branch}"]
             subprocess.run(cmd, cwd=localPath, check=True)
             filePath = localPath + path  # os.path.join(localPath, path)
@@ -708,10 +818,10 @@ class GetContent(View):
                 pass
             response["data"] = data
             releaseSemaphore(repoId)
+            return JsonResponse(response)
         except Exception as e:
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
+            releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
-        return JsonResponse(response)
 
 
 def validate_token(token):
@@ -838,10 +948,13 @@ class GitCommit(View):
                 response['errcode'] = errcode
                 releaseSemaphore(repoId)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+        releaseSemaphore(repoId)
         return JsonResponse(response)
 
 
@@ -882,11 +995,6 @@ class GitPr(View):
             remotePath = Repo.objects.get(id=repoId).remote_path
             getSemaphore(repoId)
             if token is not None or validate_token(token):
-                subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_prOutput.log")
-
                 command = [
                     "gh", "api",
                     "-H", "Accept: application/vnd.github+json",
@@ -905,21 +1013,21 @@ class GitPr(View):
                     print(result.stderr)
                     response["message"] = json.loads(result.stdout)["errors"][0]["message"]
                     response["errcode"] = 7
+                    releaseSemaphore(repoId)
                     return JsonResponse(response)
                 output = json.loads(result.stdout)
                 print("------- pr number:", output["number"])
                 Pr.objects.create(applicant_id=applicant, repo_id=repo, src_branch=branch, dst_branch=base,
                                   pr_number=output["number"], applicant_name=applicant.name, pr_status=Pr.OPEN)
-
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 response['errcode'] = 0
                 releaseSemaphore(repoId)
-                os.system("rm -f " + log_path)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+        releaseSemaphore(repoId)
         return JsonResponse(response)
 
 
@@ -969,6 +1077,7 @@ class GitBranchCommit(View):
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     response["message"] = result.stderr
                     response["errcode"] = 7
+                    releaseSemaphore(repoId)
                     return JsonResponse(response)
                 log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
                 print(log_path)
@@ -1033,10 +1142,13 @@ class GitBranchCommit(View):
                 releaseSemaphore(repoId)
                 os.system("rm -f " + log_path)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+        releaseSemaphore(repoId)
         return JsonResponse(response)
 
 
