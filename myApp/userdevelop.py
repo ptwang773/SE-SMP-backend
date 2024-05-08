@@ -577,6 +577,7 @@ class GetCommitHistory(View):
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             flag, response = checkCMDError(result.stderr, 5, response)
             if flag:
+                releaseSemaphore(repoId)
                 print("err is ", result.stderr)
                 return JsonResponse(response)
             releaseSemaphore(repoId)
@@ -769,7 +770,6 @@ class GetFileTree(View):
                 data.append(item)
             response["data"] = data
             releaseSemaphore(repoId)
-            return JsonResponse(response)
         except Exception as e:
             releaseSemaphore(repoId)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))

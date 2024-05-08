@@ -202,8 +202,10 @@ class GenerateCommitMessage(View):
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 releaseSemaphore(repoId)
             else:
+                releaseSemaphore(repoId)
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
+            releaseSemaphore(repoId)
             subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo.local_path, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
