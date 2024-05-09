@@ -1223,7 +1223,14 @@ class IsProjectReviewer(View):
         if tmp is None or tmp.role == UserProject.NORMAL:
             return JsonResponse(genResponseStateInfo(response, 1, "user is not reviewer"))
         else:
-            response['flag'] = 1
+            if tmp.role == UserProject.REVIEWER:
+                response['flag'] = 1
+            elif tmp.role == UserProject.DEVELOPER:
+                response['flag'] = 2
+            elif tmp.role == UserProject.ADMIN:
+                response['flag'] = 3
+            else:
+                response['flag'] = 0
             return JsonResponse(response)
 
 
