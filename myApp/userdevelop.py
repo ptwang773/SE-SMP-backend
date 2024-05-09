@@ -885,7 +885,7 @@ import re
 
 def validate_token_format(token):
     # 定义符合要求的token前缀列表
-    valid_prefixes = ['ghp_', 'gho_','ghu_','ghs_','ghr_']
+    valid_prefixes = ['ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_']
     # 使用正则表达式检查token是否以有效的前缀开头
     pattern = '|'.join(valid_prefixes)
     if re.match(pattern, token):
@@ -1108,7 +1108,7 @@ class GitBranchCommit(View):
         files = kwargs.get('files')
         branch = kwargs.get('branch')
         message = kwargs.get('message')
-
+        dstBranch = kwargs.get("dstBranch")
         project = isProjectExists(projectId)
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
@@ -1127,16 +1127,13 @@ class GitBranchCommit(View):
         localPath = repo.local_path
         try:
             remotePath = repo.remote_path
-            print("hhhh")
-            print(token is None)
             print(validate_token(token))
             if token is not None or not validate_token(token):
-                print("ffff")
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-
-                result = subprocess.run(["git", "checkout", "-b", branch], cwd=localPath, stderr=subprocess.PIPE,
+                subprocess.run(['git', 'checkout', branch], cwd=localPath, check=True)
+                result = subprocess.run(["git", "checkout", "-b", dstBranch], cwd=localPath, stderr=subprocess.PIPE,
                                         text=True)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     response["message"] = result.stderr
