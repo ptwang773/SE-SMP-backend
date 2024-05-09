@@ -247,7 +247,7 @@ class RefreshRepo(View):
             remotePath = repo.remote_path
             result = subprocess.run(
                 ["git", "pull","origin"],
-                capture_output=True, text=True)
+                capture_output=True, text=True,cwd=localPath)
 
             print(result.stderr)
             if result.returncode == 0:
