@@ -1342,8 +1342,9 @@ class GetCommitDetails(View):
                 next = subprocess.run(['git', 'show', f'{sha}:{file["filename"]}'], text=True,
                                       capture_output=True,
                                       cwd=localPath, check=True)
-                changes.append({"filename": file["filename"], "status": file["status"], 
-                                "prev_file": prev, "now_file": next.stdout})
+                patch = file.get("patch", None)  
+                changes.append({"filename": file["filename"], "status": file["status"], "patch": patch,
+                        "prev_file": prev, "now_file": next.stdout})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
             commit["comments"] = getCommitComment(tmp_commit.id, projectId)
