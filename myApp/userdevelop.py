@@ -245,18 +245,17 @@ class RefreshRepo(View):
         try:
             # 重新克隆远程仓库
             remotePath = repo.remote_path
-            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                           cwd=localPath)
             result = subprocess.run(
-                ["git", "pull","tmp"],
-                capture_output=True, text=True, check=True)
-            subprocess.run(['git', 'remote', 'rm', 'tmp'], cwd=localPath)
+                ["git", "pull","origin"],
+                capture_output=True, text=True)
+
+            print(result.stderr)
             if result.returncode == 0:
                 return JsonResponse(response)
             else:
                 return JsonResponse(genResponseStateInfo(response, 5, "failed to refresh repository"))
         except Exception as e:
-            subprocess.run(['git', 'remote', 'rm', 'tmp'], cwd=localPath)
+            print(e)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
 
