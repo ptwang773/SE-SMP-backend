@@ -476,7 +476,7 @@ class UserBindRepo(View):
                 'git', 'clone', f"https://{token}@github.com/{repoRemotePath}.git",
                 f"{localPath}"
             ]
-            result = subprocess.run(clone_command, stderr=subprocess.PIPE, text=True,cwd=userReposDir)
+            result = subprocess.run(clone_command, stderr=subprocess.PIPE, text=True, cwd=userReposDir)
             if result.returncode != 0:
                 return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
 
@@ -880,7 +880,22 @@ class GetContent(View):
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
 
+import re
+
+
+def validate_token_format(token):
+    # 定义符合要求的token前缀列表
+    valid_prefixes = ['ghp_', 'gho_','ghu_','ghs_','ghr_']
+    # 使用正则表达式检查token是否以有效的前缀开头
+    pattern = '|'.join(valid_prefixes)
+    if re.match(pattern, token):
+        return True
+    return False
+
+
 def validate_token(token):
+    if not validate_token_format(token):
+        return False
     headers = {'Authorization': 'token ' + token, 'Content-Type': 'application/json; charset=utf-8'}
     response = requests.get('https://api.github.com/user', headers=headers)
     print(token, response.status_code)
@@ -1002,7 +1017,7 @@ class GitCommit(View):
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 response['errcode'] = errcode
             else:
-                return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
+                return JsonResponse(genResponseStateInfo(response, 6, f"wrong token {token} with this user"))
         except Exception as e:
             subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
@@ -1112,7 +1127,11 @@ class GitBranchCommit(View):
         localPath = repo.local_path
         try:
             remotePath = repo.remote_path
-            if token is None or not validate_token(token):
+            print("hhhh")
+            print(token is None)
+            print(validate_token(token))
+            if token is not None or not validate_token(token):
+                print("ffff")
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
