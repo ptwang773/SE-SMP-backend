@@ -243,18 +243,20 @@ class RefreshRepo(View):
             return JsonResponse(genResponseStateInfo(response, 4, "invalid token"))
         localPath = repo.local_path
         try:
-            shutil.rmtree(localPath)
             # 重新克隆远程仓库
             remotePath = repo.remote_path
+            subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                           cwd=localPath)
             result = subprocess.run(
-                ["git", "clone", f"https://{token}@github.com/{remotePath}.git", localPath],
+                ["git", "pull","tmp"],
                 capture_output=True, text=True, check=True)
-            # subprocess.run(['git', 'remote', 'rm', 'origin'], cwd=localPath)
+            subprocess.run(['git', 'remote', 'rm', 'tmp'], cwd=localPath)
             if result.returncode == 0:
                 return JsonResponse(response)
             else:
                 return JsonResponse(genResponseStateInfo(response, 5, "failed to refresh repository"))
         except Exception as e:
+            subprocess.run(['git', 'remote', 'rm', 'tmp'], cwd=localPath)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
 
