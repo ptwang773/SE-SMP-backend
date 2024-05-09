@@ -956,7 +956,7 @@ class GitCommit(View):
                 subprocess.run(["git", "commit", "-m", message], cwd=localPath, check=True)
 
                 result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
-                                        text=True, check=True)
+                                        text=True)
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath, check=True)
