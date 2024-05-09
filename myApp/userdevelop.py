@@ -1799,11 +1799,12 @@ class GetPrAssociatedTasks(View):
         genResponseStateInfo(response, 0, "get pr associated tasks ok")
         prId = kwargs.get('prId')
 
-        if not Pr.objects.filter(id=prId).exists():
+        if not Pr.objects.filter(pr_number=prId).exists():
             return JsonResponse(genResponseStateInfo(response, 1, "pr does not exist"))
+        pr = Pr.objects.get(pr_number=prId)
         data = []
         pt_set = set()
-        for pt in Pr_Task.objects.filter(pr_id=prId):
+        for pt in Pr_Task.objects.filter(pr_id=pr.id):
             if (prId, pt.task_id_id) in pt_set:
                 continue
             else:
