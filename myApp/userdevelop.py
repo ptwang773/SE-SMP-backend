@@ -984,6 +984,7 @@ class GitCommit(View):
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     subprocess.run(["git", "reset", "--hard", "HEAD^1"], cwd=localPath, check=True)
+                    subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                     response["message"] = result.stderr
                     errcode = 7
                 else:
@@ -1166,6 +1167,7 @@ class GitBranchCommit(View):
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
                     subprocess.run(["git", "branch", "-D", branch], cwd=localPath)
+                    subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                     response["message"] = result.stderr
                     errcode = 7
                 else:
@@ -1339,7 +1341,6 @@ class GetCommitDetails(View):
         except subprocess.CalledProcessError as e:
             print("命令执行失败:", e)
             print("错误输出:", e.stderr)
-            subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath, check=True)
             response["message"] = str(e)
             response["errcode"] = -1
             return JsonResponse(response)
