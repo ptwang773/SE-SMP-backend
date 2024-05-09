@@ -316,7 +316,7 @@ class GetBindRepos(View):
                     f"/repos/{repo.remote_path}"
                 ]
                 result = subprocess.run(command, capture_output=True, text=True,
-                                                      cwd=repo.local_path, check=True)
+                                        cwd=repo.local_path, check=True)
                 desc = json.loads(result.stdout)
                 response["data"].append({"repoId": repoId,
                                          "repoRemotePath": repo.remote_path,
@@ -453,64 +453,41 @@ class UserBindRepo(View):
         repoRemotePath = kwargs.get('repoRemotePath')
         DBG("userId=" + userId + " projectId=" + projectId + " repoRemotePath=" + repoRemotePath)
         project = isProjectExists(projectId)
-        if project == None:
+        if project is None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
         userProject = isUserInProject(userId, projectId)
-        if userProject == None or not User.objects.filter(id=userId).exists():
+        if userProject is None or not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         user = User.objects.get(id=userId)
         token = user.token
         # check if repo exists
         if token is None or not validate_token(token):
             return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
-        try:
-            localHasRepo = False
-            s = Repo.objects.filter(remote_path=repoRemotePath)
-            if len(s) != 0:
-                localHasRepo = True
-                repoId = s[0].id
-                userProjectRepo = UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId)
-                if len(userProjectRepo) != 0:
-                    return JsonResponse(genResponseStateInfo(response, 4, "duplicate repo"))
-            # clone & repo
-            print(repoRemotePath)
-            repoName = repoRemotePath.split("/")[-1]
-            localPath = os.path.join(USER_REPOS_DIR, repoName)
-            DBG("repoName=" + repoName, " localPath=" + localPath)
-            if localHasRepo == False:
-                # if dir not exists, then clone
-                if not os.path.exists(localPath):
-                    os.makedirs(localPath)
-                    subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath)
-                    subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                    subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-                    print(f"https://{token}@github.com/{repoRemotePath}.git")
-                    result = subprocess.run(["git", "clone", f"https://{token}@github.com/{repoRemotePath}.git",
-                                             f"{localPath}"], cwd=localPath, stderr=subprocess.PIPE, text=True)
-                    subprocess.run(['git', 'remote', 'rm', 'orgin'], cwd=localPath)
-                    print("err is ", result.stderr)
-                    if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
-                        response["message"] = result.stderr
-                        return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
-            # insert Repo
-            repo = None
-            s = Repo.objects.filter(remote_path=repoRemotePath)
-            if len(s) != 0:
-                repo = s[0]
-            else:
-                repoEntry = Repo(name=repoName, local_path=localPath, remote_path=repoRemotePath)
-                repoEntry.save()
-                # insert UserProjectRepo
-                repo = Repo.objects.get(name=repoName, local_path=localPath, remote_path=repoRemotePath)
-            user = User.objects.get(id=userId)
-            project = Project.objects.get(id=projectId)
-            userProjectRepoEntry = UserProjectRepo(user_id=user, project_id=project, repo_id=repo)
-            userProjectRepoEntry.save()
 
-            subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-            subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
-        except Exception as e:
-            return JsonResponse(genUnexpectedlyErrorInfo(response, e))
+        repoName = repoRemotePath.split("/")[-1]
+        userReposDir = os.path.join(USER_REPOS_DIR, "user" + userId)
+        localPath = os.path.join(userReposDir, repoName)
+
+        if not os.path.exists(userReposDir):
+            os.makedirs(userReposDir)
+
+        if not os.path.exists(localPath):
+            clone_command = [
+                'git', 'clone', f"https://{token}@github.com/{repoRemotePath}.git",
+                f"{localPath}"
+            ]
+            result = subprocess.run(clone_command, stderr=subprocess.PIPE, text=True,cwd=userReposDir)
+            if result.returncode != 0:
+                return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
+
+        repo, _ = Repo.objects.get_or_create(
+            remote_path=repoRemotePath,
+            defaults={'name': repoName, 'local_path': localPath}
+        )
+
+        userProjectRepoEntry, _ = UserProjectRepo.objects.get_or_create(
+            user_id=user, project_id=project, repo_id=repo
+        )
         return JsonResponse(response)
 
 
