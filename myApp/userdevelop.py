@@ -247,9 +247,15 @@ class RefreshRepo(View):
             # 重新克隆远程仓库
             remotePath = repo.remote_path
             result = subprocess.run(
-                ["git", "clone", '--mirror', f"https://{token}@github.com/{remotePath}.git", localPath],
+                ["git", "clone", '--bare', f"https://{token}@github.com/{remotePath}.git", localPath],
                 capture_output=True, text=True, check=True)
-            subprocess.run(['git', 'remote', 'rm', 'origin'], cwd=localPath)
+
+            # Fetch all branches from the remote repository
+            result = subprocess.run(
+                ["git", "fetch", "--all"],
+                cwd=localPath,
+                capture_output=True, text=True, check=True)
+            # subprocess.run(['git', 'remote', 'rm', 'origin'], cwd=localPath)
             if result.returncode == 0:
                 return JsonResponse(response)
             else:

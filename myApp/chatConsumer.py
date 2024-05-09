@@ -5,18 +5,19 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
 from myApp.models import Group, User, Message, UserGroup
 
+
 class ChatConsumer(WebsocketConsumer):
     def connect(self):
         # get roomid from websocket request url kwargs
         self.room_id = int(self.scope['url_route']['kwargs']['roomId'])
-        self.room = Group.objects.get(id = self.room_id)
+        self.room = Group.objects.get(id=self.room_id)
         self.room_group_name = 'char_room_%s' % self.room_id
 
         # get userId from websocket request url
         self.user_id = int(self.scope['url_route']['kwargs']['userId'])
 
         # join room group
-        async_to_sync(self.channel_layer.group_add) (
+        async_to_sync(self.channel_layer.group_add)(
             self.room_group_name, self.channel_name
         )
 
@@ -25,7 +26,7 @@ class ChatConsumer(WebsocketConsumer):
 
     def disconnect(self, code):
         # disconnect the websocket connection
-        async_to_sync(self.channel_layer.group_discard) (
+        async_to_sync(self.channel_layer.group_discard)(
             self.room_group_name, self.channel_name
         )
 
@@ -35,27 +36,27 @@ class ChatConsumer(WebsocketConsumer):
         ws_json_data = json.loads(text_data)
         message_content, send_user_id = str(ws_json_data['message']), int(ws_json_data['sender'])
 
-        send_user = User.objects.get(id = send_user_id)
+        send_user = User.objects.get(id=send_user_id)
         send_time = datetime.datetime.now()
         # generate the message for all users in this room,
         # and flag these messages' unchecking status.
-        for association in UserGroup.objects.filter(group_id = self.room.id):
+        for association in UserGroup.objects.filter(group_id=self.room.id):
             check_status = 'UC'
             if association.user.id == send_user_id:
                 check_status = 'C'
             message = Message(
-                type = 'A',
-                status = check_status,
-                content = message_content,
-                time = send_time,
-                group_id = self.room,
-                send_user = send_user,
-                receive_user = association.user
+                type='A',
+                status=check_status,
+                content=message_content,
+                time=send_time,
+                group_id=self.room,
+                send_user=send_user,
+                receive_user=association.user
             )
             message.save()
 
         # send the message to others in this room.
-        async_to_sync(self.channel_layer.group_send) (
+        async_to_sync(self.channel_layer.group_send)(
             self.room_group_name, {
                 'type': 'chat_message',
                 'send_user_name': send_user.name,
@@ -69,7 +70,7 @@ class ChatConsumer(WebsocketConsumer):
         send_time = str(event['send_time'])
 
         # set the message status to 'checked'
-        for message in Message.objects.filter(time = send_time):
+        for message in Message.objects.filter(time=send_time):
             if message.receive_user.id == self.user_id:
                 message.status = 'C'
                 message.save()
@@ -82,7 +83,3 @@ class ChatConsumer(WebsocketConsumer):
             'senderId': event['send_user_id'],
             'time': str(event['send_time'])
         }))
-
-
-
-
