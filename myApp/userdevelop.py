@@ -16,7 +16,6 @@ import json5
 
 repo_semaphore = {}
 
-
 # def getSemaphore(repoId):
 #     repoId = str(repoId)
 #     if not repo_semaphore.__contains__(repoId):
@@ -303,26 +302,26 @@ class GetBindRepos(View):
         userProject = isUserInProject(userId, projectId)
         if userProject == None:
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
-
-        descLogName = str(getCounter()) + "_getRepoDesc.log"
-        print("*********", descLogName)
+        user = User.objects.get(id=userId)
+        token = user.token
         try:
             userProjectRepos = UserProjectRepo.objects.filter(project_id=projectId)
             for userProjectRepo in userProjectRepos:
                 repoId = userProjectRepo.repo_id.id
                 repo = Repo.objects.get(id=repoId)
-
-                os.system("gh repo view " + repo.remote_path + " | grep description > " + os.path.join(USER_REPOS_DIR,
-                                                                                                       descLogName))
-                desc = open(os.path.join(USER_REPOS_DIR, descLogName), "r").readlines()[0]
-                desc = desc.split(":", 2)[1].strip()
-                os.system("rm -f " + os.path.join(USER_REPOS_DIR, descLogName))
-                if desc.isspace():
-                    desc = None
+                command = [
+                    "gh", "api",
+                    "-H", "Accept: application/vnd.github.v3+json",
+                    "-H", f"Authorization: token {token}",
+                    f"/repos/{repo.remote_path}"
+                ]
+                result = subprocess.run(command, capture_output=True, text=True,
+                                                      cwd=repo.local_path, check=True)
+                desc = json.loads(result.stdout)
                 response["data"].append({"repoId": repoId,
                                          "repoRemotePath": repo.remote_path,
                                          "name": repo.name,
-                                         "repoIntroduction": desc})
+                                         "repoIntroduction": desc["description"]})
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
@@ -1147,8 +1146,6 @@ class GitBranchCommit(View):
                     response["message"] = result.stderr
                     response["errcode"] = 7
                     return JsonResponse(response)
-                log_path = os.path.join(USER_REPOS_DIR, str(getCounter()) + "_commitOutput.log")
-                print(log_path)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
                 for file in files:
@@ -1208,7 +1205,6 @@ class GitBranchCommit(View):
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 response['errcode'] = errcode
-                os.system("rm -f " + log_path)
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
