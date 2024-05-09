@@ -1867,7 +1867,7 @@ class DeletePrTask(View):
             return JsonResponse(genResponseStateInfo(response, 8, "task is completed"))
 
         try:
-            prTask = Pr_Task.objects.get(pr_id=prId, task_id=taskId)
+            prTask = Pr_Task.objects.get(pr_id=pr.id, task_id=taskId)
             prTask.delete()
         except Exception as e:
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
