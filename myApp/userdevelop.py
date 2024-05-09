@@ -1152,11 +1152,11 @@ class GitBranchCommit(View):
                     subprocess.run(["git", "add", path], cwd=localPath)
                 subprocess.run(["git", "commit", "-m", message], cwd=localPath)
 
-                result = subprocess.run(["git", "push", "tmp", branch], cwd=localPath, stderr=subprocess.PIPE,
+                result = subprocess.run(["git", "push", "tmp", dstBranch], cwd=localPath, stderr=subprocess.PIPE,
                                         text=True)
                 print("err is ", result.stderr)
                 if "fatal" in result.stderr or "403" in result.stderr or "rejected" in result.stderr:
-                    subprocess.run(["git", "branch", "-D", branch], cwd=localPath)
+                    subprocess.run(["git", "branch", "-D", dstBranch], cwd=localPath)
                     subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                     response["message"] = result.stderr
                     errcode = 7
