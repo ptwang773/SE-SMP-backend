@@ -248,7 +248,7 @@ class RefreshRepo(View):
             remotePath = repo.remote_path
             result = subprocess.run(
                 ["git", "clone", f"https://{token}@github.com/{remotePath}.git", localPath],
-                capture_output=True, text=True, check=True,cwd=localPath)
+                capture_output=True, text=True, check=True)
             # subprocess.run(['git', 'remote', 'rm', 'origin'], cwd=localPath)
             if result.returncode == 0:
                 return JsonResponse(response)
