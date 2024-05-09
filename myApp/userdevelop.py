@@ -248,9 +248,25 @@ class RefreshRepo(View):
             result = subprocess.run(
                 ["git", "pull","origin"],
                 capture_output=True, text=True,cwd=localPath)
-
+            
             print(result.stderr)
             if result.returncode == 0:
+                # 获取本地和远程分支列表
+                branch_result = subprocess.run(
+                    ["git", "branch", "-a"],
+                    capture_output=True, text=True,cwd=localPath)
+                if branch_result.returncode != 0:
+                    return JsonResponse(genResponseStateInfo(response, 5, "failed to get branch list"))
+                # 解析分支列表并创建本地分支
+                branches = branch_result.stdout.strip().split('\n')
+                for branch in branches:
+                    # 去掉分支名前的空格和 * 符号
+                    branch_name = branch.strip().lstrip('* ')
+                    # 忽略 HEAD 指针和远程分支
+                    if branch_name != "HEAD" and not branch_name.startswith("remotes/origin/HEAD"):
+                        if branch_name.startswith("remotes/origin"):
+                            branch_name = branch_name.split("/")[-1]
+                        subprocess.run(["git", "checkout", branch_name],cwd=localPath)
                 return JsonResponse(response)
             else:
                 return JsonResponse(genResponseStateInfo(response, 5, "failed to refresh repository"))
