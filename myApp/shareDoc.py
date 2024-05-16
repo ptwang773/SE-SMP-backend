@@ -24,6 +24,8 @@ def userDocListTemplate(userId, projectId, table):
     userProject = isUserInProject(userId, projectId)
     if userProject == None:
         return genResponseStateInfo(response, 2, "user not in project")
+    if userProject.viewAuth == UserProject.N:
+        return genResponseStateInfo(response, 3, "no view auth")
     data = []
     tableEntries = table.objects.filter(user_id=userId)
     for entry in tableEntries:
@@ -192,6 +194,8 @@ def userEditDocOther(userId, docId, projectId, name, accessUserId):
     userProject = isUserInProject(userId, projectId)
     if userProject == None:
         return genResponseStateInfo(response, 2, "user not in project")
+    if userProject.editAuth == UserProject.N:
+        return genResponseStateInfo(response, 3, "no edit auth")
     Document.objects.filter(id=docId).update(name=name)
     doc = Document.objects.get(id=docId)
     for item in accessUserId:
@@ -236,6 +240,8 @@ def userEditDocContent(userId, docId, projectId, content):
     userProject = isUserInProject(userId, projectId)
     if userProject == None:
         return genResponseStateInfo(response, 2, "user not in project")
+    if userProject.editAuth == UserProject.N:
+        return genResponseStateInfo(response, 3, "no edit auth")
     Document.objects.filter(id=docId).update(
         content=content, time=datetime.datetime.now()
     )
@@ -267,7 +273,8 @@ def userGetDocLock(userId, projectId, docId):
     userProject = isUserInProject(userId, projectId)
     if userProject == None:
         return genResponseStateInfo(response, 2, "user not in project")
-
+    if userProject.viewAuth == UserProject.N:
+        return genResponseStateInfo(response, 4, "no view auth")
     doc = Document.objects.get(id=docId)
     user = User.objects.get(id=userId)
     try:
