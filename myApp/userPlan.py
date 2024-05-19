@@ -279,6 +279,10 @@ class addSubTask(View):
         task.save()
 
         UserTask.objects.create(user_id_id=managerId, task_id=task)
+        project = Project.objects.get(id=projectId)
+        content = f"您有新任务\"{task.name}\"。该任务属于项目\"{project.name}\""
+        msg = Notice.objects.create(reciver_id=managerId, read=Notice.N, content=content)
+        msg.save()
 
         response['errcode'] = 0
         response['message'] = "success"
@@ -819,22 +823,18 @@ class notice(View):
 
         taskId = kwargs.get("taskId", -1)
         deadline = kwargs.get("deadline", "")
-        year, month, day, hour, minute = deadline.split("-")
-        year = int(year)
-        month = int(month)
-        day = int(day)
-        hour = int(hour)
-        minute = int(minute)
         if Task.objects.filter(id=taskId).count() == 0:
             response['errcode'] = 1
             response['message'] = "task not exist"
             response['data'] = None
             return JsonResponse(response)
+        task = Task.objects.get(id=taskId)
+        project = Project.objects.get(id=task.project_id)
 
-        msg = Notice.objects.create(belongingTask_id=taskId,
-                                    deadline=datetime.datetime(year=year, month=month, day=day, hour=hour,
-                                                               minute=minute))
-        msg.save()
+        content = f"您的项目\"{project.name}\"中的任务\"{task.name}\"于\"{deadline}\"到期"
+        for up in UserProject.objects.filter(project_id=project, role=UserProject.ADMIN):
+            msg = Notice.objects.create(reciver_id=up.user_id, read=Notice.N, content=content)
+            msg.save()
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = None
@@ -849,21 +849,20 @@ class showNoticeList(View):
         except Exception:
             return JsonResponse(response)
 
-        projectId = kwargs.get("projectId", -1)
+        userId = kwargs.get('userId')
 
-        if Project.objects.filter(id=projectId).count() == 0:
+        if User.objects.filter(id=userId).count() == 0:
             response['errcode'] = 1
-            response['message'] = "project not exist"
+            response['message'] = "user not exist"
             response['data'] = None
             return JsonResponse(response)
 
-        taskList = Task.objects.filter(project_id_id=projectId)
+        noticeList = Notice.objects.filter(reciver_id=userId)
         data = []
-        for i in taskList:
-            notices = Notice.objects.filter(belongingTask=i)
-            for j in notices:
-                sub_tmp = {"noticeId": j.id, "taskId": i.id, "deadline": j.deadline}
-                data.append(sub_tmp)
+        for notice in noticeList:
+            sub_tmp = {"noticeId": notice.id, "content": notice.content,
+                       "create_time": notice.create_time, "read": notice.read}
+            data.append(sub_tmp)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = data
@@ -871,29 +870,22 @@ class showNoticeList(View):
         return JsonResponse(response)
 
 
-class modifyNotice(View):
+class readNotice(View):
     def post(self, request):
         response = {'errcode': 1, 'message': "404 not success"}
         try:
             kwargs: dict = json.loads(request.body)
         except Exception:
             return JsonResponse(response)
-
         noticeId = kwargs.get("noticeId", -1)
-        if Notice.objects.filter(id=noticeId).count() == 0:
+        userId = kwargs.get("userId", -1)
+        if Notice.objects.filter(id=noticeId, reciver_id=userId).count() == 0:
             response['errcode'] = 1
             response['message'] = "notice not exist"
             response['data'] = None
             return JsonResponse(response)
         notice = Notice.objects.get(id=noticeId)
-        deadline = kwargs.get("deadline", "")
-        year, month, day, hour, minute = deadline.split("-")
-        year = int(year)
-        month = int(month)
-        day = int(day)
-        hour = int(hour)
-        minute = int(minute)
-        notice.deadline = datetime.datetime(year=year, month=month, day=day, hour=hour, minute=minute)
+        notice.read = Notice.Y
         notice.save()
 
         response['errcode'] = 0

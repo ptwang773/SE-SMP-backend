@@ -1047,6 +1047,13 @@ class GitCommit(View):
                                 cooperate.save()
                     UserProjectActivity.objects.create(user_id=user, project_id=project,
                                                        option=UserProjectActivity.COMMIT_CODE)
+
+                    content = f"您的项目\"{project.name}\"有新的提交，位于仓库\"{repo.name}\"的分支\"{branch}\"，" \
+                              f"请分配审核人员。"
+                    for up in UserProject.objects.filter(project_id=project, role=UserProject.ADMIN):
+                        msg = Notice.objects.create(reciver_id=up.user_id, read=Notice.N, content=content)
+                        msg.save()
+
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -1120,6 +1127,11 @@ class GitPr(View):
                 Pr.objects.create(applicant_id=applicant, repo_id=repo, src_branch=branch, dst_branch=base,
                                   pr_number=output["number"], applicant_name=applicant.name, pr_status=Pr.OPEN)
                 response['errcode'] = 0
+                content = f"您的项目\"{project.name}\"有新的合并请求，位于仓库\"{repo.name}\"，" \
+                          f"请分配审核人员。"
+                for up in UserProject.objects.filter(project_id=project, role=UserProject.ADMIN):
+                    msg = Notice.objects.create(reciver_id=up.user_id, read=Notice.N, content=content)
+                    msg.save()
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:
@@ -1229,6 +1241,13 @@ class GitBranchCommit(View):
                                 cooperate.save()
                     UserProjectActivity.objects.create(user_id=user, project_id=project,
                                                        option=UserProjectActivity.COMMIT_CODE)
+
+                    content = f"您的项目\"{project.name}\"有新的提交，位于仓库\"{repo.name}\"的分支\"{branch}\"，" \
+                              f"请分配审核人员。"
+                    for up in UserProject.objects.filter(project_id=project, role=UserProject.ADMIN):
+                        msg = Notice.objects.create(reciver_id=up.user_id, read=Notice.N, content=content)
+                        msg.save()
+
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
@@ -1421,6 +1440,9 @@ class AssignCommitReviewer(View):
             return JsonResponse(genResponseStateInfo(response, 10, "can not assign twice"))
         tmp_commit.reviewer_id = User.objects.get(id=reviewerId)
         tmp_commit.save()
+        content = f"您有新的提交审核待处理。该提交属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
+        msg = Notice.objects.create(reciver_id=reviewerId, read=Notice.N, content=content)
+        msg.save()
         return JsonResponse(response)
 
 
@@ -1466,6 +1488,9 @@ class AssignPrReviewer(View):
             return JsonResponse(genResponseStateInfo(response, 10, "can not assign twice"))
         pr.reviewer_id = User.objects.get(id=reviewerId)
         pr.save()
+        content = f"您有新的合并请求审核待处理。该合并请求属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
+        msg = Notice.objects.create(reciver_id=reviewerId, read=Notice.N, content=content)
+        msg.save()
         return JsonResponse(response)
 
 
@@ -1506,10 +1531,16 @@ class ModifyCommitStatus(View):
         if tmp_commit.review_status is not None:
             return JsonResponse(genResponseStateInfo(response, 8, "can not approve/reject twice"))
         if not tmp_commit.reviewer_id == User.objects.get(id=userId):
-            return JsonResponse(genResponseStateInfo(response,9,"you are not this commit's reviewer"))
+            return JsonResponse(genResponseStateInfo(response, 9, "you are not this commit's reviewer"))
         if status == 0 or status == 1:
             tmp_commit.review_status = Commit.Y if status == 1 else Commit.N
             tmp_commit.save()
+            if status == 1:
+                content = f"您的提交已被同意。该提交属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
+            else:
+                content = f"您的提交已被拒绝。该提交属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
+            msg = Notice.objects.create(reciver_id=tmp_commit.committer_id, read=Notice.N, content=content)
+            msg.save()
         else:
             return JsonResponse(
                 genResponseStateInfo(response, 10, "wrong review status, must approve/reject please"))
@@ -1670,10 +1701,9 @@ class ResolvePr(View):
         repo_name = str.split(repo.remote_path, "/")[1]
 
         if Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
-            pr = Pr.objects.get(pr_number=prId,repo_id=repo)
+            pr = Pr.objects.get(pr_number=prId, repo_id=repo)
             if not pr.reviewer_id == user:
-                return JsonResponse(genResponseStateInfo(response,10,"you are not this pr's reviewer"))
-
+                return JsonResponse(genResponseStateInfo(response, 10, "you are not this pr's reviewer"))
 
         try:
             if action == 0:
@@ -1750,6 +1780,13 @@ class ResolvePr(View):
             UserProjectActivity.objects.create(user_id=user, project_id=project,
                                                option=UserProjectActivity.FINISH_TASK)
             response['errcode'] = errcode
+            if errcode == 0:
+                if action == 1:
+                    content = f"您的合并请求已被同意。该pr属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
+                else:
+                    content = f"您的合并请求已被拒绝。该pr属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
+                msg = Notice.objects.create(reciver_id=pr.applicant_id, read=Notice.N, content=content)
+                msg.save()
             return JsonResponse(response)
         except subprocess.CalledProcessError as e:
             print("命令执行失败:", e)

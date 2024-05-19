@@ -131,9 +131,16 @@ class Group(models.Model):
 
 class Notice(models.Model):
     id = models.AutoField(primary_key=True)
-    belongingTask = models.ForeignKey(Task, on_delete=models.CASCADE)
-    deadline = models.DateTimeField()
     content = models.TextField()
+    reciver_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    Y = 'Y'
+    N = 'N'
+    YON = (
+        (Y, 'Y'),
+        (N, 'N'),
+    )
+    read = models.CharField(max_length=3, choices=YON, default=N)
+    create_time = models.DateTimeField(auto_now_add=True)
 
 
 class MyFile(models.Model):
