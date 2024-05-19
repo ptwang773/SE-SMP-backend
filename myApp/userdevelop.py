@@ -1379,6 +1379,96 @@ class GetCommitDetails(View):
             return JsonResponse(response)
 
 
+class AssignCommitReviewer(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "assign commit reviewer ok")
+        sha = kwargs.get('sha')
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        reviewerId = kwargs.get('reviewerId')
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        userProject2 = isUserInProject(reviewerId, projectId)
+        if userProject is None or userProject2 is None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+        if not User.objects.filter(id=reviewerId).exists():
+            return JsonResponse(genResponseStateInfo(response, 6, "reviewer is not exist"))
+        if not isProjectReviewer(reviewerId, projectId):
+            return JsonResponse(genResponseStateInfo(response, 7, "this is not  reviewer"))
+        if not Commit.objects.filter(sha=sha).exists():
+            return JsonResponse(genResponseStateInfo(response, 8, "commit is not exists"))
+        if not userProject.role == UserProject.DEVELOPER:
+            return JsonResponse(genResponseStateInfo(response, 9, "permission denied"))
+
+        tmp_commit = Commit.objects.filter(sha=sha)[0]
+        if tmp_commit.reviewer_id is not None:
+            return JsonResponse(genResponseStateInfo(response, 10, "can not assign twice"))
+        tmp_commit.reviewer_id = User.objects.get(id=reviewerId)
+        tmp_commit.save()
+        return JsonResponse(response)
+
+
+class AssignPrReviewer(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "assign pr reviewer ok")
+        prId = kwargs.get('prId')
+        userId = kwargs.get('userId')
+        projectId = kwargs.get('projectId')
+        repoId = kwargs.get('repoId')
+        reviewerId = kwargs.get('reviewerId')
+        project = isProjectExists(projectId)
+        if project == None:
+            return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
+        userProject = isUserInProject(userId, projectId)
+        userProject2 = isUserInProject(reviewerId, projectId)
+        if userProject is None or userProject2 is None:
+            return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
+        if not UserProjectRepo.objects.filter(project_id=projectId, repo_id=repoId).exists():
+            return JsonResponse(genResponseStateInfo(response, 3, "no such repo in project"))
+        repo = Repo.objects.get(id=repoId)
+        if repo is None:
+            return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
+        if not User.objects.filter(id=userId).exists():
+            return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
+        if not User.objects.filter(id=reviewerId).exists():
+            return JsonResponse(genResponseStateInfo(response, 6, "reviewer is not exist"))
+        if not isProjectReviewer(reviewerId, projectId):
+            return JsonResponse(genResponseStateInfo(response, 7, "this is not  reviewer"))
+        if not Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
+            return JsonResponse(genResponseStateInfo(response, 8, "pr is not exists"))
+        if not userProject.role == UserProject.DEVELOPER:
+            return JsonResponse(genResponseStateInfo(response, 9, "permission denied"))
+
+        pr = Pr.objects.filter(pr_number=prId, repo_id=repo)[0]
+        if pr.reviewer_id is not None:
+            return JsonResponse(genResponseStateInfo(response, 10, "can not assign twice"))
+        pr.reviewer_id = User.objects.get(id=reviewerId)
+        pr.save()
+        return JsonResponse(response)
+
+
 class ModifyCommitStatus(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -1406,25 +1496,23 @@ class ModifyCommitStatus(View):
             return JsonResponse(genResponseStateInfo(response, 4, "no such repo"))
         if not User.objects.filter(id=userId).exists():
             return JsonResponse(genResponseStateInfo(response, 5, "user is not exist"))
-        token = User.objects.get(id=userId).token
-        if token is None or validate_token(token) == False:
-            return JsonResponse(genResponseStateInfo(response, 6, "invalid token"))
 
         if not isProjectReviewer(userId, projectId):
-            return JsonResponse(genResponseStateInfo(response, 7, "permission denied"))
+            return JsonResponse(genResponseStateInfo(response, 6, "permission denied"))
         if not Commit.objects.filter(sha=sha).exists():
-            return JsonResponse(genResponseStateInfo(response, 10, "commit is not exists"))
+            return JsonResponse(genResponseStateInfo(response, 7, "commit is not exists"))
 
         tmp_commit = Commit.objects.filter(sha=sha)[0]
         if tmp_commit.review_status is not None:
-            return JsonResponse(genResponseStateInfo(response, 9, "can not approve/reject twice"))
+            return JsonResponse(genResponseStateInfo(response, 8, "can not approve/reject twice"))
+        if not tmp_commit.reviewer_id == User.objects.get(id=userId):
+            return JsonResponse(genResponseStateInfo(response,9,"you are not this commit's reviewer"))
         if status == 0 or status == 1:
             tmp_commit.review_status = Commit.Y if status == 1 else Commit.N
-            tmp_commit.reviewer_id = User.objects.get(id=userId)
             tmp_commit.save()
         else:
             return JsonResponse(
-                genResponseStateInfo(response, 8, "wrong review status, must approve/reject please"))
+                genResponseStateInfo(response, 10, "wrong review status, must approve/reject please"))
         return JsonResponse(response)
 
 
@@ -1580,6 +1668,12 @@ class ResolvePr(View):
 
         owner = str.split(repo.remote_path, "/")[0]
         repo_name = str.split(repo.remote_path, "/")[1]
+
+        if Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
+            pr = Pr.objects.get(pr_number=prId,repo_id=repo)
+            if not pr.reviewer_id == user:
+                return JsonResponse(genResponseStateInfo(response,10,"you are not this pr's reviewer"))
+
 
         try:
             if action == 0:

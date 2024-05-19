@@ -77,7 +77,9 @@ urlpatterns = [
 
     path('api/develop/getFileCommits', userdevelop.GetFileCommits.as_view()),
     path('api/develop/checkRefreshRepo', userdevelop.CheckRefreshRepo.as_view()),
-    path('api/develop/refreshRepo',userdevelop.RefreshRepo.as_view()),
+    path('api/develop/refreshRepo', userdevelop.RefreshRepo.as_view()),
+    path('api/develop/assignCommitReviewer', userdevelop.AssignCommitReviewer.as_view()),
+    path('api/develop/assignPrReviewer', userdevelop.AssignPrReviewer.as_view()),
 
     path('api/register', userBasic.register),
     path('api/login', userBasic.login),
