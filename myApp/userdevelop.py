@@ -246,7 +246,7 @@ class RefreshRepo(View):
             # 重新克隆远程仓库
             remotePath = repo.remote_path
             result = subprocess.run(
-                ["git", "pull","origin"],
+                ["git", "pull", "origin"],
                 capture_output=True, text=True)
 
             print(result.stderr)
@@ -439,6 +439,20 @@ class GetRepoFile(View):
             return JsonResponse(genResponseStateInfo(response, 1, "file does not exists"))
 
 
+def check_repo_exists(token, repoRemotePath):
+    owner, repo_name = repoRemotePath.split('/')
+    check_command = [
+        "gh", "api",
+        f"/repos/{owner}/{repo_name}",
+        "-H", f"Authorization: token {token}"
+    ]
+    try:
+        result = subprocess.run(check_command, capture_output=True, text=True, check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 class UserBindRepo(View):
     def post(self, request):
         DBG("---- in " + sys._getframe().f_code.co_name + " ----")
@@ -463,24 +477,30 @@ class UserBindRepo(View):
         token = user.token
         # check if repo exists
         if token is None or not validate_token(token):
-            return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
+            return JsonResponse(genResponseStateInfo(response, 3, "wrong token with this user"))
 
         repoName = repoRemotePath.split("/")[-1]
         userReposDir = os.path.join(USER_REPOS_DIR, "user" + userId)
         localPath = os.path.join(userReposDir, repoName)
-
+        print(localPath)
         if not os.path.exists(userReposDir):
             os.makedirs(userReposDir)
+
+        if not check_repo_exists(token, repoRemotePath):
+            return JsonResponse(genResponseStateInfo(response, 4, "wrong remote path"))
 
         if not os.path.exists(localPath):
             clone_command = [
                 'git', 'clone', f"https://{token}@github.com/{repoRemotePath}.git",
                 f"{localPath}"
             ]
-            result = subprocess.run(clone_command, stderr=subprocess.PIPE, text=True, cwd=userReposDir)
+            result = subprocess.run(clone_command, capture_output=True, text=True, cwd=userReposDir)
+            print(result.stdout)
+            print(result.stderr)
             if result.returncode != 0:
                 return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
-
+        else:
+            return JsonResponse(genResponseStateInfo(response, 6, "duplicate bind"))
         repo, _ = Repo.objects.get_or_create(
             remote_path=repoRemotePath,
             defaults={'name': repoName, 'local_path': localPath}
@@ -1803,9 +1823,9 @@ class GetPrAssociatedTasks(View):
         repo = Repo.objects.get(id=repoId)
         if repo is None:
             return JsonResponse(genResponseStateInfo(response, 2, "no such repo"))
-        if not Pr.objects.filter(pr_number=prId,repo_id=repo).exists():
+        if not Pr.objects.filter(pr_number=prId, repo_id=repo).exists():
             return JsonResponse(genResponseStateInfo(response, 1, "pr does not exist"))
-        pr = Pr.objects.get(pr_number=prId,repo_id=repo)
+        pr = Pr.objects.get(pr_number=prId, repo_id=repo)
         data = []
         pt_set = set()
         for pt in Pr_Task.objects.filter(pr_id=pr.id):
