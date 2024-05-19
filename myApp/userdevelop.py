@@ -248,16 +248,12 @@ class RefreshRepo(View):
             result = subprocess.run(
                 ["git", "pull", "origin"],
                 capture_output=True, text=True)
-
-                ["git", "pull","origin"],
-                capture_output=True, text=True,cwd=localPath)
-
             print(result.stderr)
             if result.returncode == 0:
                 # 获取本地和远程分支列表
                 branch_result = subprocess.run(
                     ["git", "branch", "-a"],
-                    capture_output=True, text=True,cwd=localPath)
+                    capture_output=True, text=True, cwd=localPath)
                 if branch_result.returncode != 0:
                     return JsonResponse(genResponseStateInfo(response, 5, "failed to get branch list"))
                 # 解析分支列表并创建本地分支
@@ -269,7 +265,7 @@ class RefreshRepo(View):
                     if branch_name != "HEAD" and not branch_name.startswith("remotes/origin/HEAD"):
                         if branch_name.startswith("remotes/origin"):
                             branch_name = branch_name.split("/")[-1]
-                        subprocess.run(["git", "checkout", branch_name],cwd=localPath)
+                        subprocess.run(["git", "checkout", branch_name], cwd=localPath)
                 return JsonResponse(response)
             else:
                 return JsonResponse(genResponseStateInfo(response, 5, "failed to refresh repository"))
@@ -1367,7 +1363,7 @@ class GetCommitDetails(View):
                                       cwd=localPath, check=True)
                 patch = file.get("patch", None)
                 changes.append({"filename": file["filename"], "status": file["status"], "patch": patch,
-                        "prev_file": prev, "now_file": next.stdout})
+                                "prev_file": prev, "now_file": next.stdout})
             commit["files"] = changes
             commit["committer_name"] = tmp_commit.committer_name
             commit["comments"] = getCommitComment(tmp_commit.id, projectId)
