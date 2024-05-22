@@ -504,7 +504,9 @@ class UserBindRepo(View):
 
         if not check_repo_exists(token, repoRemotePath):
             return JsonResponse(genResponseStateInfo(response, 4, "wrong remote path"))
-
+        if Repo.objects.filter(remote_path=repoRemotePath).exists():
+            repo = Repo.objects.get(remote_path=repoRemotePath)
+            localPath = repo.local_path
         if not os.path.exists(localPath):
             clone_command = [
                 'git', 'clone', f"https://{token}@github.com/{repoRemotePath}.git",
@@ -515,10 +517,7 @@ class UserBindRepo(View):
             print(result.stderr)
             if result.returncode != 0:
                 return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
-        else:
-            return JsonResponse(genResponseStateInfo(response, 6, "duplicate bind"))
         repo, _ = Repo.objects.get_or_create(
-            local_path=localPath,
             remote_path=repoRemotePath,
             defaults={'name': repoName}
         )
