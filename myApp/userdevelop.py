@@ -687,11 +687,19 @@ class GetCommitHistory(View):
                                                        committer_name=info["commit"]["author"]["name"])
                 else:
                     tmp_commit = Commit.objects.filter(sha=sha)[0]
+                if tmp_commit.reviewer_id is not None:
+                    reviewerId = tmp_commit.reviewer_id_id
+                    reviewerName = User.objects.get(id=reviewerId).name
+                else:
+                    reviewerId = None
+                    reviewerName = None
                 data.append({"commithash": sha, "author": info["commit"]['author']['name'],
                              "authorEmail": info['commit']['author']['email'],
                              "commitTime": info["commit"]["author"]["date"],
                              "commitMessage": info["commit"]["message"],
-                             "status": tmp_commit.review_status}
+                             "status": tmp_commit.review_status,
+                             "reviewerId": reviewerId,
+                             "reviewerName": reviewerName, }
                             )
                 response["data"] = data
         except Exception as e:
@@ -803,9 +811,18 @@ class GetPrList(View):
                 if not Pr.objects.filter(pr_number=it["number"], repo_id=repo).exists():
                     Pr.objects.create(pr_number=it["number"], repo_id=repo, applicant_name=it["user"]["login"],
                                       src_branch=it["head"]["ref"], dst_branch=it["base"]["ref"])
+                pr = Pr.objects.get(pr_number=it["number"], repo_id=repo)
+                if pr.reviewer_id is None:
+                    reviewerId = None
+                    reviewerName = None
+                else:
+                    reviewerId = pr.reviewer_id_id
+                    reviewerName = User.objects.get(id=reviewerId).name
                 data.append({"prId": it["number"],
                              "prIssuer": it["user"]["login"],
                              "prTitle": it["title"],
+                             "reviewerId": reviewerId,
+                             "reviewerName": reviewerName,
                              "prTime": it["updated_at"],
                              "isOpen": it["state"] == "open",
                              "ghLink": it["html_url"],
