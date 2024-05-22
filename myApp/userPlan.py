@@ -870,8 +870,7 @@ class showNoticeList(View):
             data.append(sub_tmp)
 
         data.sort(
-            key=lambda x: (x['read'] == Notice.Y,
-                           -datetime.datetime.strptime(x['create_time'], '%Y-%m-%d %H:%M:%S').timestamp()))
+            key=lambda x: (x['read'] == Notice.Y, -x['create_time'].timestamp()))
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = data
