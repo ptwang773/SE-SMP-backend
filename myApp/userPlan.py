@@ -866,6 +866,10 @@ class showNoticeList(View):
             sub_tmp = {"noticeId": notice.id, "content": notice.content,
                        "create_time": notice.create_time, "read": notice.read}
             data.append(sub_tmp)
+
+        data.sort(
+            key=lambda x: (x['read'] == Notice.Y,
+                           -datetime.datetime.strptime(x['create_time'], '%Y-%m-%d %H:%M:%S').timestamp()))
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = data
