@@ -519,7 +519,7 @@ class UserBindRepo(View):
                 return JsonResponse(genResponseStateInfo(response, 5, "clone failed"))
         repo, _ = Repo.objects.get_or_create(
             remote_path=repoRemotePath,
-            defaults={'name': repoName}
+            defaults={'name': repoName, 'local_path': localPath}
         )
 
         userProjectRepoEntry, _ = UserProjectRepo.objects.get_or_create(
