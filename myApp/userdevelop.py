@@ -321,6 +321,11 @@ class GetBindRepos(View):
             return JsonResponse(genResponseStateInfo(response, 2, "user not in project"))
         user = User.objects.get(id=userId)
         token = user.token
+        # check if repo exists
+        if token is None:
+            return JsonResponse(genResponseStateInfo(response, 3, "null token"))
+        if not validate_token(token):
+            return JsonResponse(genResponseStateInfo(response, 4, "wrong token with this user"))
         try:
             userProjectRepos = UserProjectRepo.objects.filter(project_id=projectId)
             for userProjectRepo in userProjectRepos:
