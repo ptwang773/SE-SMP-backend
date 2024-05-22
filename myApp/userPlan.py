@@ -1282,3 +1282,43 @@ class showActivity(View):
                          "code": users[user]["code"]})
         response['data'] = data
         return JsonResponse(response)
+
+
+class showProjectReviewers(View):
+    def post(self, request):
+        response = {'errcode': -1, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        genResponseStateInfo(response, 0, "get project reviewers ok")
+        projectId = kwargs.get("projectId", -1)
+        userId = kwargs.get('userId', -1)
+        if Project.objects.filter(id=projectId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "project not exist"
+            response['data'] = None
+            return JsonResponse(response)
+
+        if User.objects.filter(id=userId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+
+        if UserProject.objects.filter(
+                Q(role=UserProject.ADMIN) | Q(role=UserProject.DEVELOPER), user_id=User.objects.get(id=userId),
+                project_id_id=projectId,
+        ).count() == 0:
+            response['errcode'] = 3
+            response['message'] = "user not admin"
+            response['data'] = None
+            return JsonResponse(response)
+
+        reviewers = UserProject.objects.filter(project_id_id=projectId, role=UserProject.REVIEWER)
+        data = []
+        for reviewers in reviewers:
+            user = reviewers.user_id
+            data.append({"userName": user.name, "userId": user.id})
+        response['data'] = data
+        return JsonResponse(response)
