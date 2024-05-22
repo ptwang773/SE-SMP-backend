@@ -132,7 +132,7 @@ class Group(models.Model):
 class Notice(models.Model):
     id = models.AutoField(primary_key=True)
     content = models.TextField()
-    reciver_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    receiver_id = models.ForeignKey(User, on_delete=models.CASCADE)
     Y = 'Y'
     N = 'N'
     YON = (

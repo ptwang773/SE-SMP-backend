@@ -281,7 +281,7 @@ class addSubTask(View):
         UserTask.objects.create(user_id_id=managerId, task_id=task)
         project = Project.objects.get(id=projectId)
         content = f"您有新任务\"{task.name}\"。该任务属于项目\"{project.name}\""
-        msg = Notice.objects.create(reciver_id=managerId, read=Notice.N, content=content)
+        msg = Notice.objects.create(receiver_id=User.objects.get(id=managerId), read=Notice.N, content=content)
         msg.save()
 
         response['errcode'] = 0
@@ -832,8 +832,11 @@ class notice(View):
         project = Project.objects.get(id=task.project_id)
 
         content = f"您的项目\"{project.name}\"中的任务\"{task.name}\"于\"{deadline}\"到期"
-        for up in UserProject.objects.filter(project_id=project, role=UserProject.ADMIN):
-            msg = Notice.objects.create(reciver_id=up.user_id, read=Notice.N, content=content)
+        for up in UserProject.objects.filter(
+                Q(role=UserProject.ADMIN) | Q(role=UserProject.DEVELOPER),
+                project_id=project
+        ):
+            msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content)
             msg.save()
         response['errcode'] = 0
         response['message'] = "success"
@@ -857,7 +860,7 @@ class showNoticeList(View):
             response['data'] = None
             return JsonResponse(response)
 
-        noticeList = Notice.objects.filter(reciver_id=userId)
+        noticeList = Notice.objects.filter(receiver_id=userId)
         data = []
         for notice in noticeList:
             sub_tmp = {"noticeId": notice.id, "content": notice.content,
@@ -879,7 +882,7 @@ class readNotice(View):
             return JsonResponse(response)
         noticeId = kwargs.get("noticeId", -1)
         userId = kwargs.get("userId", -1)
-        if Notice.objects.filter(id=noticeId, reciver_id=userId).count() == 0:
+        if Notice.objects.filter(id=noticeId, receiver_id=userId).count() == 0:
             response['errcode'] = 1
             response['message'] = "notice not exist"
             response['data'] = None
