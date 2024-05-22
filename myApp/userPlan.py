@@ -831,15 +831,11 @@ class notice(View):
             response['data'] = None
             return JsonResponse(response)
         task = Task.objects.get(id=taskId)
-        project = Project.objects.get(id=task.project_id)
-
+        project = Project.objects.get(id=task.project_id_id)
+        user = UserTask.objects.get(task_id=task).user_id
         content = f"您的项目\"{project.name}\"中的任务\"{task.name}\"于\"{deadline}\"到期"
-        for up in UserProject.objects.filter(
-                Q(role=UserProject.ADMIN) | Q(role=UserProject.DEVELOPER),
-                project_id=project
-        ):
-            msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content)
-            msg.save()
+        msg = Notice.objects.create(receiver_id=user, read=Notice.N, content=content)
+        msg.save()
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = None
