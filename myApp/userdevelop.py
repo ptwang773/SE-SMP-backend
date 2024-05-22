@@ -518,8 +518,9 @@ class UserBindRepo(View):
         else:
             return JsonResponse(genResponseStateInfo(response, 6, "duplicate bind"))
         repo, _ = Repo.objects.get_or_create(
+            local_path=localPath,
             remote_path=repoRemotePath,
-            defaults={'name': repoName, 'local_path': localPath}
+            defaults={'name': repoName}
         )
 
         userProjectRepoEntry, _ = UserProjectRepo.objects.get_or_create(
@@ -938,6 +939,8 @@ def validate_token(token):
     print(token, response.status_code)
     if response.status_code == 200:
         return True
+    print("Response body:", response.text)
+    print("Response headers:", response.headers)
     return False
 
 
