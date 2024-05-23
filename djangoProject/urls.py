@@ -119,7 +119,8 @@ urlpatterns = [
     path('api/plan/changeUserProjectAuths', userPlan.changeUserProjectAuths.as_view()),
     path('api/plan/showCooperate', userPlan.showCooperate.as_view()),
     path('api/plan/showActivity', userPlan.showActivity.as_view()),
-    path('api/plan/showProjectReviewers',userPlan.showProjectReviewers.as_view()),
+    path('api/plan/showProjectReviewers', userPlan.showProjectReviewers.as_view()),
+    path('api/plan/getRole', userPlan.getRole.as_view()),
 
     path('api/echo', debug.echo),
     path('api/notice/userPostNoticeToAll', notice.UserPostNoticeToAll.as_view()),

@@ -644,6 +644,40 @@ class showPersonList(View):
         return JsonResponse(response)
 
 
+class getRole(View):
+    def post(self, request):
+        response = {'errcode': 1, 'message': "404 not success"}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+
+        projectId = kwargs.get("projectId", -1)
+        if Project.objects.filter(id=projectId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "project not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        project = Project.objects.get(id=projectId)
+        userId = kwargs.get("userId", -1)
+        if User.objects.filter(id=userId).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "user not exist"
+            response['data'] = None
+            return JsonResponse(response)
+        user = User.objects.get(id=userId)
+        if UserProject.objects.filter(project_id=project, user_id=user).count() == 0:
+            response['errcode'] = 1
+            response['message'] = "user not in project"
+            response['data'] = None
+            return JsonResponse(response)
+        up = UserProject.objects.get(user_id=user, project_id=project)
+        response['errcode'] = 0
+        response['message'] = "success"
+        response['role'] = up.role
+        return JsonResponse(response)
+
+
 class modifyRole(View):
     def post(self, request):
         response = {'errcode': 1, 'message': "404 not success"}
