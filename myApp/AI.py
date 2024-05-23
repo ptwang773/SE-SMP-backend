@@ -11,7 +11,26 @@ import datetime
 
 from myApp.models import *
 from myApp.userdevelop import genResponseStateInfo, isUserInProject, isProjectExists, is_independent_git_repository, \
-     genUnexpectedlyErrorInfo, validate_token
+    genUnexpectedlyErrorInfo, validate_token
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, SummarizationPipeline
+import nltk
+from nltk.tokenize import WordPunctTokenizer
+
+pipeline = None
+
+
+def load_codeTrans_model():
+    global pipeline
+    if pipeline is None:
+        # model_path = "/home/ptwang/Code/SE-SMP-backend/myApp/codeTrans/base/"
+        model_path = "/root/project/SE-SMP-backend/myApp/codeTrans/base/"
+        print("model path:", model_path)
+        pipeline = SummarizationPipeline(
+            model=AutoModelForSeq2SeqLM.from_pretrained(model_path),
+            tokenizer=AutoTokenizer.from_pretrained(model_path),
+            device="cpu"
+        )
+
 
 # openai.organization = "org-fBoqj45hvJisAEGMR5cvPnDS"
 api_key = "sk-proj-YjxEM9CWA8GhasSyqtoGT3BlbkFJ1kL8VTIIZ5GxZCBWH3Tu"
@@ -178,11 +197,13 @@ class GenerateCommitMessage(View):
             if validate_token(token):
                 subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
-                subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
-                               cwd=localPath)
-                subprocess.run(['git', 'pull', f'{branch}'], cwd=localPath)
+                # subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
+                #                cwd=localPath)
+                # subprocess.run(['git', 'pull', f'{branch}'], cwd=localPath)
+                print(1111)
                 for file in files:
                     path = os.path.join(localPath, file.get('path'))
+                    print(2222)
                     content = file.get('content')
                     print("$$$$$$$$$$ modify file ", path, content)
                     try:
@@ -196,7 +217,7 @@ class GenerateCommitMessage(View):
                 if diff.stdout is None:
                     return JsonResponse(genResponseStateInfo(response, 7, "you have not modify file"))
                 subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=localPath, check=True)
-                subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
+                # subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
                 subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
             else:
@@ -205,15 +226,27 @@ class GenerateCommitMessage(View):
             subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=repo.local_path, check=True)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "请针对以下git diff内容,为此次commit生成一些合适的message," +
-                                        diff.stdout + ", speak English"},
-        ]
-        chat = request_trash(messages)
+        # messages = [
+        #     {"role": "system", "content": "You are a helpful assistant."},
+        #     {"role": "user", "content": "请针对以下git diff内容,为此次commit生成一些合适的message," +
+        #                                 diff.stdout + ", speak English"},
+        # ]
+        # chat = request_trash(messages)
+
+        load_codeTrans_model()
+        nltk.data.path.append("/root/project/SE-SMP-backend/myApp/codeTrans/tokenizers/")
+        nltk.data.path.append("/home/ptwang/Code/SE-SMP-backend/myApp/codeTrans/tokenizers/")  # check here
+        tokenized_list = WordPunctTokenizer().tokenize(diff.stdout)
+        tokenized_code = ' '.join(tokenized_list)
+        print("tokenized code: " + tokenized_code)
+        # 进行摘要生成
+        output = pipeline([tokenized_code])
+        print(output[0]['summary_text'])
+
         response['errcode'] = 0
         response['message'] = "success"
-        response['data'] = chat["choices"][0]["message"]["content"]
+        # response['data'] = chat["choices"][0]["message"]["content"]
+        response['data'] = output[0]['summary_text']
         return JsonResponse(response)
 
 
