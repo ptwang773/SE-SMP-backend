@@ -1916,6 +1916,11 @@ class GetPrDetails(View):
                 "merge_commit_sha": jsonOutput["merge_commit_sha"],
                 "branch": jsonOutput["head"]["ref"],
                 "base": jsonOutput["base"]["ref"],
+                "pr_applicant": jsonOutput["user"]["login"],
+                "created_time": jsonOutput["created_at"],
+                "updated_time": jsonOutput["updated_at"],
+                "closed_time" : jsonOutput["closed_at"],
+                "merged_time" : jsonOutput["merged_at"],
                 "commits": []
             }
             command = [
