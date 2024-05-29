@@ -896,7 +896,7 @@ class showNoticeList(View):
         data = []
         for notice in noticeList:
             sub_tmp = {"noticeId": notice.id, "content": notice.content,
-                       "create_time": notice.create_time, "read": notice.read}
+                       "create_time": notice.create_time, "read": notice.read, "url": notice.url}
             data.append(sub_tmp)
 
         data.sort(

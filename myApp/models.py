@@ -141,6 +141,7 @@ class Notice(models.Model):
     )
     read = models.CharField(max_length=3, choices=YON, default=N)
     create_time = models.DateTimeField(auto_now_add=True)
+    url = models.CharField(max_length=255,default="")
 
 
 class MyFile(models.Model):

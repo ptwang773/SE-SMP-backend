@@ -1080,7 +1080,11 @@ class GitCommit(View):
                         project_id=project
                     )
                     for up in filtered_user:
-                        msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content)
+                        msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
+                                                    url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
+                                                        f"{branch}/{current_commit_sha}?branchName={branch}&projId={projectId}&"
+                                                        f"repodId={repoId}&commitSha={current_commit_sha}"
+                        )
                         msg.save()
 
                     errcode = 0
@@ -1158,11 +1162,15 @@ class GitPr(View):
                 response['errcode'] = 0
                 content = f"您的项目\"{project.name}\"有新的合并请求，位于仓库\"{repo.name}\"，" \
                           f"请分配审核人员。"
+                prId = output["number"]
                 for up in UserProject.objects.filter(
                         Q(role=UserProject.ADMIN) | Q(role=UserProject.DEVELOPER),
                         project_id=project
                 ):
-                    msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content)
+                    msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
+                                                url=f"http://114.116.202.116/prReview/{projectId}/{repoId}/{prId}"
+                                                    f"?prId={prId}&projId={projectId}&repoId={repoId}"
+                                                )
                     msg.save()
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
@@ -1280,7 +1288,11 @@ class GitBranchCommit(View):
                             Q(role=UserProject.ADMIN) | Q(role=UserProject.DEVELOPER),
                             project_id=project
                     ):
-                        msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content)
+                        msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
+                                                    url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
+                                                        f"{branch}/{current_commit_sha}?branchName={branch}&projId={projectId}&"
+                                                        f"repodId={repoId}&commitSha={current_commit_sha}"
+                        )
                         msg.save()
 
                     errcode = 0
@@ -1449,6 +1461,7 @@ class AssignCommitReviewer(View):
         projectId = kwargs.get('projectId')
         repoId = kwargs.get('repoId')
         reviewerId = kwargs.get('reviewerId')
+        branch = kwargs.get('branch')
         project = isProjectExists(projectId)
         if project == None:
             return JsonResponse(genResponseStateInfo(response, 1, "project does not exists"))
@@ -1478,7 +1491,10 @@ class AssignCommitReviewer(View):
         tmp_commit.reviewer_id = User.objects.get(id=reviewerId)
         tmp_commit.save()
         content = f"您有新的提交审核待处理。该提交属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
-        msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content)
+        msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content,
+                                    url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
+                                        f"{branch}/{sha}?branchName={branch}&projId={projectId}&"
+                                        f"repodId={repoId}&commitSha={sha}")
         msg.save()
         return JsonResponse(response)
 
@@ -1526,7 +1542,9 @@ class AssignPrReviewer(View):
         pr.reviewer_id = User.objects.get(id=reviewerId)
         pr.save()
         content = f"您有新的合并请求审核待处理。该合并请求属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
-        msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content)
+        msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content,
+                                    url=f"http://114.116.202.116/prReview/{projectId}/{repoId}/{prId}"
+                                        f"?prId={prId}&projId={projectId}&repoId={repoId}")
         msg.save()
         return JsonResponse(response)
 
@@ -1919,8 +1937,8 @@ class GetPrDetails(View):
                 "pr_applicant": jsonOutput["user"]["login"],
                 "created_time": jsonOutput["created_at"],
                 "updated_time": jsonOutput["updated_at"],
-                "closed_time" : jsonOutput["closed_at"],
-                "merged_time" : jsonOutput["merged_at"],
+                "closed_time": jsonOutput["closed_at"],
+                "merged_time": jsonOutput["merged_at"],
                 "commits": []
             }
             command = [
