@@ -1423,6 +1423,8 @@ class GetCommitDetails(View):
             commit["comments"] = getCommitComment(tmp_commit.id, projectId)
             commit["status"] = tmp_commit.review_status
             commit["reviewerName"] = tmp_commit.reviewer_id.name if tmp_commit.reviewer_id is not None else None
+            commit["commit_time"] = data["commit"]["committer"]["date"]
+            commit["commit_message"] = data["commit"]["message"]
             response["commit"] = commit
             return JsonResponse(response)
         except subprocess.CalledProcessError as e:
