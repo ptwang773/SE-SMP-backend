@@ -548,7 +548,7 @@ class IsProjectAdmin(View):
         if not isAdmin(managerId):
             return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
         userId = kwargs.get('userId')
-        result = UserProject.objects.filter(user_id=userId).exists()
+        result = UserProject.objects.filter(user_id_id=userId).exists()
         if result:
             response['data'] = 1
         else:
