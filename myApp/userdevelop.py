@@ -16,6 +16,7 @@ import json5
 from django.db.models import Q
 
 repo_semaphore = {}
+os.environ['GH_TOKEN'] = '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'
 
 # def getSemaphore(repoId):
 #     repoId = str(repoId)
@@ -326,25 +327,34 @@ class GetBindRepos(View):
             return JsonResponse(genResponseStateInfo(response, 3, "null token"))
         if not validate_token(token):
             return JsonResponse(genResponseStateInfo(response, 4, "wrong token with this user"))
+        print(11111111111111)
         try:
             userProjectRepos = UserProjectRepo.objects.filter(project_id=projectId)
+            print(22222222)
             for userProjectRepo in userProjectRepos:
                 repoId = userProjectRepo.repo_id.id
                 repo = Repo.objects.get(id=repoId)
+                print(33333333)
                 command = [
                     "gh", "api",
                     "-H", "Accept: application/vnd.github.v3+json",
                     "-H", f"Authorization: token {token}",
                     f"/repos/{repo.remote_path}"
                 ]
+                print(44444444)
                 result = subprocess.run(command, capture_output=True, text=True,
-                                        cwd=repo.local_path, check=True)
+                                        cwd=repo.local_path,check=True)
                 desc = json.loads(result.stdout)
+                print("out is :",result.stdout)
+                print("err is :",result.stderr)
+                response["out"] = result.stdout
+                response["fuck"] = result.stderr
                 response["data"].append({"repoId": repoId,
                                          "repoRemotePath": repo.remote_path,
                                          "name": repo.name,
                                          "repoIntroduction": desc["description"]})
         except Exception as e:
+            print(e)
             return JsonResponse(genUnexpectedlyErrorInfo(response, e))
 
         return JsonResponse(response)
@@ -462,6 +472,7 @@ class GetRepoFile(View):
 
 def check_repo_exists(token, repoRemotePath):
     owner, repo_name = repoRemotePath.split('/')
+    print(os.environ.get('GH_TOKEN'))
     check_command = [
         "gh", "api",
         f"/repos/{owner}/{repo_name}",
