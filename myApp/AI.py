@@ -249,7 +249,7 @@ class GenerateCommitMessage(View):
 
         load_codeTrans_model()
         nltk.data.path.append("/root/project/SE-SMP-backend/myApp/codeTrans/tokenizers/")
-        nltk.data.path.append("/home/ptwang/Code/SE-SMP-backend/myApp/codeTrans/tokenizers/")  # check here
+        #nltk.data.path.append("/home/ptwang/Code/SE-SMP-backend/myApp/codeTrans/tokenizers/")  # check here
         tokenized_list = WordPunctTokenizer().tokenize(diff.stdout)
         tokenized_code = ' '.join(tokenized_list)
         print("tokenized code: " + tokenized_code)
