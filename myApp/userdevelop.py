@@ -1025,6 +1025,8 @@ class GitCommit(View):
             if not is_independent_git_repository(localPath):
                 return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
             if validate_token(token):
+                subprocess.run(["git", "config", "--global", "user.name", "JiHub"], cwd=localPath,check=True)
+                subprocess.run(["git", "config", "--global", "user.email", "JiHub@buaa.edu.cn"], cwd=localPath,check=True)
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
