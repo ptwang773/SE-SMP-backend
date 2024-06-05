@@ -1,5 +1,6 @@
 import struct
 
+from django.db.models import Q
 from django.http import JsonResponse, HttpResponse
 from django.core import serializers
 from django.views import View
@@ -547,7 +548,7 @@ class IsProjectAdmin(View):
         if not isAdmin(managerId):
             return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
         userId = kwargs.get('userId')
-        result = UserProject.objects.filter(user_id=userId, role=UserProject.ADMIN).exists()
+        result = UserProject.objects.filter(user_id=userId).exists()
         if result:
             response['data'] = 1
         else:

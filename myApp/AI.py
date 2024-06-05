@@ -67,13 +67,13 @@ text = """class getEmail(View):
 # print(model)
 
 def request_trash(messages):
-    url = 'https://gtapi.xiaoerchaoren.com:8932/v1/chat/completions'
+    url = 'https://api.zhizengzeng.com/v1/chat/completions'
 
     headers = {
 
         'Content-Type': 'application/json',
 
-        'Authorization': 'Bearer sk-i0ipf6VCzrMI2F1o0cD27a1f24654794A6C2A21e8d617978'  # 输入网站发给你的转发key
+        'Authorization': 'Bearer sk-zk23357df89142757c24235b5bcfa520e7d6660135e19dd4'  # 输入网站发给你的转发key
 
     }
 
@@ -133,8 +133,15 @@ class UnitTest(View):
 
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "请针对以下代码给我生成单元测试代码," + text + ", speak English"}]
+            {"role": "user",
+             "content": "Please generate unit test code for the following code: " + text +
+                        ", and provide the tests in English."}]
         chat = request_trash(messages)
+        if "error" in chat:
+            error_message = chat['error'].get('message', 'Unknown error')
+            response['errcode'] = -1
+            response['message'] = f"Error from service: {error_message}"
+            return JsonResponse(response)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = chat["choices"][0]["message"]["content"]
@@ -152,12 +159,19 @@ class CodeReview(View):
         text = kwargs.get("code")
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "请针对以下代码进行代码分析," + text + ", speak English"},
+            {"role": "user",
+             "content": "Please analyze the following code: " + text + ", and provide the analysis in English"},
         ]
         chat = request_trash(messages)
+        if "error" in chat:
+            error_message = chat['error'].get('message', 'Unknown error')
+            response['errcode'] = -1
+            response['message'] = f"Error from service: {error_message}"
+            return JsonResponse(response)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = chat["choices"][0]["message"]["content"]
+
         return JsonResponse(response)
 
 
@@ -261,12 +275,17 @@ class GenerateLabel(View):
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user",
-             "content": "请根据以下描述,从下列标签中选择若干个合适的作为总结，描述为：" + outline +
-                        "\n可以选择的标签为：bug,documentation,duplicate,enhancement,good first issue,help wanted,"
-                        "invalid,question,wontifx " +
-                        ", speak English"},
+             "content": "Given the following description: " + outline +
+                        "\n, select appropriate tags from the following list to summarize it: "
+                        "bug, documentation, duplicate, enhancement, good first issue, help wanted, invalid, question, wontfix"},
         ]
         chat = request_trash(messages)
+        print(chat, "*******", "error" in chat)
+        if "error" in chat:
+            error_message = chat['error'].get('message', 'Unknown error')
+            response['errcode'] = -1
+            response['message'] = f"Error from service: {error_message}"
+            return JsonResponse(response)
         response['errcode'] = 0
         response['message'] = "success"
         response['data'] = chat["choices"][0]["message"]["content"]
