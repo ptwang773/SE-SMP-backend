@@ -48,6 +48,7 @@ urlpatterns = [
     path('api/management/changeUserAuthority', manager.ChangeUserAuthority.as_view()),
     path('api/management/addAssistantProject', manager.AddAssistantProject.as_view()),
     path('api/management/removeAssistantProject', manager.RemoveAssistantProject.as_view()),
+    path('api/management/isProjectAdmin', manager.IsProjectAdmin.as_view()),
 
     path('api/develop/getProjectName', userdevelop.GetProjectName.as_view()),
     path('api/develop/getBindRepos', userdevelop.GetBindRepos.as_view()),

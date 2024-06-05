@@ -414,9 +414,10 @@ class ShowAssistantProjects(View):
         projects = []
         for project in Project.objects.all():
             leader = User.objects.get(id=project.manager_id.id)
-            if AssistantProject.objects.filter(assistant_id=userId,project_id=project.pk).count() != 0:
+            if AssistantProject.objects.filter(assistant_id=userId, project_id=project.pk).count() != 0:
                 isManage = 1
-            else: isManage = 0
+            else:
+                isManage = 0
             projects.append({
                 "name": project.name,
                 "projectId": project.id,
@@ -529,4 +530,26 @@ class RemoveAssistantProject(View):
             return JsonResponse(genResponseStateInfo(response, 2, "no need remove"))
         ap.delete()
         response["username"] = User.objects.filter(id=userId).first().name
+        return JsonResponse(response)
+
+
+class IsProjectAdmin(View):
+    def post(self, request):
+        DBG("---- in " + sys._getframe().f_code.co_name + " ----")
+        response = {'message': "404 not success", "errcode": -1}
+        try:
+            kwargs: dict = json.loads(request.body)
+        except Exception:
+            return JsonResponse(response)
+        response = {}
+        genResponseStateInfo(response, 0, "query user ok")
+        managerId = kwargs.get('managerId')
+        if not isAdmin(managerId):
+            return JsonResponse(genResponseStateInfo(response, 1, "Insufficient authority"))
+        userId = kwargs.get('userId')
+        result = UserProject.objects.filter(user_id=userId, role=UserProject.ADMIN).exists()
+        if result:
+            response['data'] = 1
+        else:
+            response['data'] = 0
         return JsonResponse(response)
