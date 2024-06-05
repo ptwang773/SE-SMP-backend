@@ -17,7 +17,7 @@ import nltk
 from nltk.tokenize import WordPunctTokenizer
 
 pipeline = None
-
+os.environ['GH_TOKEN'] = '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'
 
 def load_codeTrans_model():
     global pipeline
@@ -209,7 +209,6 @@ class GenerateCommitMessage(View):
             if not is_independent_git_repository(localPath):
                 return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
             if validate_token(token):
-                subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
                 # subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                 #                cwd=localPath)
@@ -232,8 +231,6 @@ class GenerateCommitMessage(View):
                     return JsonResponse(genResponseStateInfo(response, 7, "you have not modify file"))
                 subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=localPath, check=True)
                 # subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, "wrong token with this user"))
         except Exception as e:

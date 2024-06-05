@@ -1025,7 +1025,6 @@ class GitCommit(View):
             if not is_independent_git_repository(localPath):
                 return JsonResponse(genResponseStateInfo(response, 999, " not git dir"))
             if validate_token(token):
-                subprocess.run(['git', 'credential-cache', 'exit'], cwd=localPath, check=True)
                 subprocess.run(["git", "checkout", branch], cwd=localPath, check=True)
                 subprocess.run(["git", "remote", "add", "tmp", f"https://{token}@github.com/{remotePath}.git"],
                                cwd=localPath)
@@ -1100,8 +1099,6 @@ class GitCommit(View):
 
                     errcode = 0
                 subprocess.run(["git", "remote", "rm", "tmp"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.name"], cwd=localPath)
-                subprocess.run(["git", "config", "--unset-all", "user.email"], cwd=localPath)
                 response['errcode'] = errcode
             else:
                 return JsonResponse(genResponseStateInfo(response, 6, f"wrong token {token} with this user"))
