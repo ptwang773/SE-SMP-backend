@@ -1097,7 +1097,7 @@ class GitCommit(View):
                         msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
                                                     url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
                                                         f"{branch}/{current_commit_sha}?branchName={branch}&projId={projectId}&"
-                                                        f"repodId={repoId}&commitSha={current_commit_sha}"
+                                                        f"repoId={repoId}&commitSha={current_commit_sha}"
                         )
                         msg.save()
 
@@ -1303,7 +1303,7 @@ class GitBranchCommit(View):
                         msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
                                                     url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
                                                         f"{branch}/{current_commit_sha}?branchName={branch}&projId={projectId}&"
-                                                        f"repodId={repoId}&commitSha={current_commit_sha}"
+                                                        f"repoId={repoId}&commitSha={current_commit_sha}"
                         )
                         msg.save()
 
@@ -1506,7 +1506,7 @@ class AssignCommitReviewer(View):
         msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content,
                                     url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
                                         f"{branch}/{sha}?branchName={branch}&projId={projectId}&"
-                                        f"repodId={repoId}&commitSha={sha}")
+                                        f"repoId={repoId}&commitSha={sha}")
         msg.save()
         return JsonResponse(response)
 
