@@ -1095,7 +1095,7 @@ class GitCommit(View):
                     )
                     for up in filtered_user:
                         msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
-                                                    url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
+                                                    url=f"commitReview/{projectId}/{repoId}/"
                                                         f"{branch}/{current_commit_sha}?branchName={branch}&projId={projectId}&"
                                                         f"repoId={repoId}&commitSha={current_commit_sha}"
                         )
@@ -1180,7 +1180,7 @@ class GitPr(View):
                         project_id=project
                 ):
                     msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
-                                                url=f"http://114.116.202.116/prReview/{projectId}/{repoId}/{prId}"
+                                                url=f"prReview/{projectId}/{repoId}/{prId}"
                                                     f"?prId={prId}&projId={projectId}&repoId={repoId}"
                                                 )
                     msg.save()
@@ -1301,7 +1301,7 @@ class GitBranchCommit(View):
                             project_id=project
                     ):
                         msg = Notice.objects.create(receiver_id=up.user_id, read=Notice.N, content=content,
-                                                    url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
+                                                    url=f"commitReview/{projectId}/{repoId}/"
                                                         f"{branch}/{current_commit_sha}?branchName={branch}&projId={projectId}&"
                                                         f"repoId={repoId}&commitSha={current_commit_sha}"
                         )
@@ -1504,7 +1504,7 @@ class AssignCommitReviewer(View):
         tmp_commit.save()
         content = f"您有新的提交审核待处理。该提交属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
         msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content,
-                                    url=f"http://114.116.202.116/commitReview/{projectId}/{repoId}/"
+                                    url=f"commitReview/{projectId}/{repoId}/"
                                         f"{branch}/{sha}?branchName={branch}&projId={projectId}&"
                                         f"repoId={repoId}&commitSha={sha}")
         msg.save()
@@ -1555,7 +1555,7 @@ class AssignPrReviewer(View):
         pr.save()
         content = f"您有新的合并请求审核待处理。该合并请求属于项目\"{project.name}\"下的\"{repo.name}\"仓库\""
         msg = Notice.objects.create(receiver_id=User.objects.get(id=reviewerId), read=Notice.N, content=content,
-                                    url=f"http://114.116.202.116/prReview/{projectId}/{repoId}/{prId}"
+                                    url=f"prReview/{projectId}/{repoId}/{prId}"
                                         f"?prId={prId}&projId={projectId}&repoId={repoId}")
         msg.save()
         return JsonResponse(response)
