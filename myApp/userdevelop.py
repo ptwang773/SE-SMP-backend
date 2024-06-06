@@ -1943,6 +1943,8 @@ class GetPrDetails(View):
                 "state": parsePrStatus(pr.pr_status),
                 "title": jsonOutput["title"],
                 "body": jsonOutput["body"],
+                "reviewerName": pr.reviewer_id.name if pr.reviewer_id is not None else None,
+                "reviewerId": pr.reviewer_id.id if pr.reviewer_id is not None else None, 
                 "merge_commit_sha": jsonOutput["merge_commit_sha"],
                 "branch": jsonOutput["head"]["ref"],
                 "base": jsonOutput["base"]["ref"],
