@@ -316,6 +316,7 @@ class showTaskList(View):
             for j in subTasks:
                 sub_tmp = {"deadline": j.deadline, "contribute": j.contribute_level,
                            "intro": j.outline, 'managerId': UserTask.objects.get(task_id=j).user_id_id,
+                           "managerName":UserTask.objects.get(task_id=j).user_id.name,
                            "subTaskName": j.name, "subTaskId": j.id, "start_time": j.start_time,
                            "complete_time": j.complete_time, "subTaskLabel": getLabelName(j.task_label),
                            "subTaskOutline": j.outline}
