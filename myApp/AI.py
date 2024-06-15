@@ -17,7 +17,8 @@ import nltk
 from nltk.tokenize import WordPunctTokenizer
 
 pipeline = None
-os.environ['GH_TOKEN'] = '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'
+os.environ['GH_TOKEN'] = 'ghp_123456'
+
 
 def load_codeTrans_model():
     global pipeline
@@ -33,7 +34,7 @@ def load_codeTrans_model():
 
 
 # openai.organization = "org-fBoqj45hvJisAEGMR5cvPnDS"
-api_key = "sk-proj-YjxEM9CWA8GhasSyqtoGT3BlbkFJ1kL8VTIIZ5GxZCBWH3Tu"
+api_key = "sk-proj-123456"
 
 text = """class getEmail(View):
     def post(self, request):
@@ -73,8 +74,7 @@ def request_trash(messages):
 
         'Content-Type': 'application/json',
 
-        'Authorization': 'Bearer sk-zk23357df89142757c24235b5bcfa520e7d6660135e19dd4'  # 输入网站发给你的转发key
-
+        'Authorization': 'Bearer sk-123456'
     }
 
     data = {
@@ -90,35 +90,6 @@ def request_trash(messages):
     response = requests.post(url, json=data, headers=headers)
 
     return response.json()
-
-
-def request_cloudflare(messages):
-    ACCOUNT_TAG = "3cec0af6cdabce0f9fafcd413f9370b4"
-    GATEWAY = "openai"
-    url = f"https://gateway.ai.cloudflare.com/v1/{ACCOUNT_TAG}/{GATEWAY}/openai/chat/completions"
-    # 请求头部
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    # 请求数据
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": messages
-    }
-
-    # 发送POST请求
-    response = requests.post(url, headers=headers, json=data)
-
-    # 处理响应
-    if response.status_code == 200:
-        response_data = response.json()
-        # 在这里处理响应数据
-        print(response_data)
-        return response.json()
-    else:
-        print(f"Error: {response.status_code}")
 
 
 class UnitTest(View):
@@ -246,7 +217,7 @@ class GenerateCommitMessage(View):
 
         load_codeTrans_model()
         nltk.data.path.append("/root/project/SE-SMP-backend/myApp/codeTrans/tokenizers/")
-        #nltk.data.path.append("/home/ptwang/Code/SE-SMP-backend/myApp/codeTrans/tokenizers/")  # check here
+        # nltk.data.path.append("/home/ptwang/Code/SE-SMP-backend/myApp/codeTrans/tokenizers/")  # check here
         tokenized_list = WordPunctTokenizer().tokenize(diff.stdout)
         tokenized_code = ' '.join(tokenized_list)
         print("tokenized code: " + tokenized_code)
